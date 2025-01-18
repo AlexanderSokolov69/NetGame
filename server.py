@@ -11,12 +11,11 @@ MAX_PLAYERS = 2  # Максимальное кол-во подключений
 class Server:
 
     def __init__(self, addr, max_conn):
+        self.step = 10
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind(addr)  # запускаем сервер от заданного адреса
-
         self.max_players = max_conn
         self.players = []  # создаем массив из игроков на сервере
-
         self.sock.listen(self.max_players)  # устанавливаем максимальное кол-во прослушиваний на сервере
         self.listen()  # вызываем цикл, который отслеживает подключения к серверу
 
@@ -29,13 +28,12 @@ class Server:
                 print("New connection", addr)
 
                 Thread(target=self.handle_client,
-                       args=(conn,)).start()  # Запускаем в новом потоке проверку действий игрока
+                       args=(conn, addr)).start()  # Запускаем в новом потоке проверку действий игрока
 
-    def handle_client(self, conn):
-
+    def handle_client(self, conn, addr):
         # Настраиваем стандартные данные для игрока
         self.player = {
-            "id": len(self.players),
+            "id": addr,
             "x": 400,
             "y": 300
         }
@@ -44,7 +42,6 @@ class Server:
         while True:
             try:
                 data = conn.recv(1024)  # ждем запросов от клиента
-
                 if not data:  # если запросы перестали поступать, то отключаем игрока от сервера
                     print("Disconnect")
                     break
@@ -60,21 +57,24 @@ class Server:
 
                 # движение
                 if data["request"] == "move":
-
+                    print(data)
                     if data["move"] == "left":
-                        self.player["x"] -= 1
+                        self.player["x"] -= self.step
                     if data["move"] == "right":
-                        self.player["x"] += 1
+                        self.player["x"] += self.step
                     if data["move"] == "up":
-                        self.player["y"] -= 1
+                        self.player["y"] -= self.step
                     if data["move"] == "down":
-                        self.player["y"] += 1
+                        self.player["y"] += self.step
+                    print(self.player)
             except Exception as e:
                 print(e)
+
+        for i in range(len(self.players)):
+            if self.players[i]['id'] == addr:
+                self.players.pop(i)  # если вышел или выкинуло с сервера - удалить персонажа
+                print(self.players)
                 break
-
-        self.players.remove(self.player)  # если вышел или выкинуло с сервера - удалить персонажа
-
 
 if __name__ == "__main__":
     server = Server((HOST, PORT), MAX_PLAYERS)
