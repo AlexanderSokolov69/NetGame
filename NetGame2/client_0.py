@@ -10,14 +10,16 @@ import pygame
 
 HOST = "127.0.0.1"  # The server's hostname or IP address
 PORT = 5056  # The port used by the server
+DATA_WIND = 8192
 
 pygame.init()
 size = width, height = 800, 600
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
-fps = 1
+fps = 5
 color = choice(['white', 'red', 'blue', 'green', 'yellow'])
 rnd = ['left', 'right', 'up', 'down']
+buff = ''
 
 while True:
     try:
@@ -44,25 +46,38 @@ while True:
                         cmd['d_rad'] = 1
                     if keys[pygame.K_BACKSPACE]:
                         cmd['d_rad'] = -1
-                if len(cmd['key']) < 1:
-                    cmd['key'].append(choice(rnd))
+                # if len(cmd['key']) < 1:
+                #     cmd['key'].append(choice(rnd))
                 st = json.dumps(cmd)
                 try:
-                    s.sendall(st.encode())
-                    data = s.recv(1024).decode()
-                    data = json.loads(data)
-                    # print(data)
-                except json.JSONDecodeError:
-                    print('Data send error.', 'json.JSONDecodeError')
-                    break
+                    s.send(st.encode())
                 except Exception as err:
-                    print('==> ', err)
-                    break
+                    print('Error of send:', err)
+
+                try:
+                    buff += s.recv(DATA_WIND).decode()
+                    # print(buff)
+                except Exception as err:
+                    print('Error of receive:', err)
+
+                while buff.find('%%%%%') >= 0:
+                    pos = buff.find('%%%%%')
+                    data = buff[5:pos]
+                    buff = buff[pos + 5:]
+                    try:
+                        data = json.loads(data)
+                    except json.JSONDecodeError:
+                        print('JSON convert error.', data)
+                        continue
+                    except Exception as err:
+                        print('==> ', err)
+                        continue
                 screen.fill('black')
                 #
                 for key, player in data.get('players', []).items():
                     pos = player['pos']
                     radius = player['radius']
+                    color = player['color']
                     pygame.draw.circle(screen, color, pos, radius)
                 #
                 pygame.display.flip()

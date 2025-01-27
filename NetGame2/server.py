@@ -3,29 +3,47 @@
 import socket
 import time
 import json
+from random import randint
 
 
 HOST, PORT = '', 5056
-DATA_WIND = 1024
+DATA_WIND = 8192
+WIDTH, HEIGHT = 800, 600
+COUNT = 50
+
 
 class Player:
-    def __init__(self):
-        self._pos = [200, 200]
-        self._radius = 1
-        self._data = None
+    def __init__(self, pos=None, radius=1):
+        if pos is None:
+            pos = [200, 200]
+        self._pos = pos
+        self._radius = radius
+        self._data = dict()
         self._step = 0
+        self._color = (randint(100, 255), randint(100, 255), randint(100, 255))
+        self._iter = 0
+        self._wait = randint(3, 30)
 
     def prepare(self):
-        cmd = self._data.get('key')
-        self._step = self._data.get('step', self._step)
-        if 'left' in cmd:
-            self._pos[0] -= self._step
-        if 'right' in cmd:
-            self._pos[0] += self._step
-        if 'down' in cmd:
-            self._pos[1] += self._step
-        if 'up' in cmd:
-            self._pos[1] -= self._step
+        # if not self._data:
+        #     return
+        cmd = self._data.get('key', [])
+        if cmd:
+            self._step = self._data.get('step', self._step)
+            if 'left' in cmd:
+                self._pos[0] -= self._step
+            if 'right' in cmd:
+                self._pos[0] += self._step
+            if 'down' in cmd:
+                self._pos[1] += self._step
+            if 'up' in cmd:
+                self._pos[1] -= self._step
+        else:
+            self._iter += 1
+            if self._iter > self._wait:
+                self._iter = 0
+                self._pos[0] += randint(-1, 1)
+                self._pos[1] += randint(-1, 1)
         self._data['key'] = None
         if self._data.get('d_rad'):
             self._radius += self._data.get('d_rad')
@@ -35,25 +53,20 @@ class Player:
         self._data = data
 
     def get_data(self):
-        return {'pos': self._pos, 'radius': self._radius}
+        return {'pos': self._pos, 'radius': self._radius, 'color': self._color}
 
 
 def handle(sock: socket.socket) -> any:
     data = None
-    addr = ('', 0)
     try:
         data = sock.recv(DATA_WIND).decode()  # Should be ready
-        addr = sock.getpeername()
     except ConnectionError:
-        print(f"Client suddenly closed while receiving {addr}")
+        print(f"Client suddenly closed while receiving {sock}")
         return None
     except BlockingIOError:
         pass
     except Exception as e:
-        print('Error:', e)
-    if not data:
-        print("Disconnected by", addr)
-        return None
+        print('Receive error:', e)
     return data
 
 
@@ -69,7 +82,7 @@ def send_data(sock, data):
 
 
 if __name__ == "__main__":
-    fps = 0.01
+    fps = 0.02
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as main_socket:
         main_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         main_socket.bind((HOST, PORT))
@@ -78,6 +91,11 @@ if __name__ == "__main__":
 
         player_sockets = []
         player_data = dict()
+        for i in range(COUNT):
+            pos = [randint(10, WIDTH - 10), randint(10, HEIGHT - 10)]
+            radius = randint(5, 20)
+            player_data[f"bot{i:03}"] = Player(pos=pos, radius=radius)
+
         print('Server started at:', HOST, PORT)
         # Игровой цикл
         clock = time.time()
@@ -85,55 +103,49 @@ if __name__ == "__main__":
             time_pause = fps - (time.time() - clock)
             if time_pause > 0:
                 time.sleep(time_pause)
-            else:
-                print(time_pause, fps)
             clock = time.time()
             try:
                 new_socket, addr = main_socket.accept()
+                addr = addr[0]
                 main_socket.setblocking(False)
                 player_sockets.append(new_socket)
-                player_data[addr[0]] = player_data.get(addr[0], Player())
+                player_data[addr] = player_data.get(addr, Player())
                 print('Connection from:', addr)
             except BlockingIOError:
                 pass
 
             # Получаем данные от игроков
             # player_data.clear()
+            addr = ''
             for sock in player_sockets.copy():
+                if 'raddr' not in sock.__repr__():
+                    continue
+                addr = sock.getpeername()
+                addr = addr[0]
                 data = handle(sock)
-                if not data:
-                    player_sockets.remove(sock)
-                    sock.close()
-                else:
+                if data:
                     try:
                         data = json.loads(data)
-                        addr = sock.getpeername()
                         # print('Received from:', addr, data)
                     except json.JSONDecodeError:
                         data = dict()
-                    player_data[addr[0]].set_data(data)
-                    # Обработка активности
-                    player_data[addr[0]].prepare()
+                    player_data[addr].set_data(data)
+
+                # Обработка активности
 
             # Игровая механика
-            for socket in player_sockets:
-                pass
+            for addr, player in player_data.items():
+                player.prepare()
 
             # Передача данных игрокам
             data = dict()
-            for addr, value in player_data.items():
-                data[addr] = value.get_data()
+            for addr, player in player_data.items():
+                data[addr] = player.get_data()
             try:
-                data = json.dumps({'players': data})
-            except:
-                print('error')
+                data = '#####' + json.dumps({'players': data}) + '%%%%%'
+            except Exception as err:
+                print('Error prepare to send:', err)
             for sock in player_sockets:
                 if not send_data(sock, data):
                     player_sockets.remove(sock)
                     sock.close()
-                # else:
-                #     try:
-                #         addr = sock.getpeername()
-                #         print(addr[0], data)
-                #     except:
-                #         pass
