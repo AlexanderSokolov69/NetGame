@@ -6,17 +6,19 @@ import json
 from random import randint
 
 
-HOST, PORT = '', 5056
+HOST, PORT = '', 5057
 DATA_WIND = 8192
 WIDTH, HEIGHT = 800, 600
 COUNT = 50
 
 
 class Player:
-    def __init__(self, pos=None, radius=1):
+    def __init__(self, pos=None, radius=10):
         if pos is None:
             pos = [200, 200]
-        self._pos = pos
+        self._pos = [0, 0]
+        self._body = [pos]
+        self._inc = 0
         self._radius = radius
         self._data = dict()
         self._step = 0
@@ -29,31 +31,55 @@ class Player:
         #     return
         cmd = self._data.get('key', [])
         if cmd:
+            # print(cmd)
             self._step = self._data.get('step', self._step)
             if 'left' in cmd:
-                self._pos[0] -= self._step
+                self._pos[0] = -self._step
+                self._pos[1] = 0
             if 'right' in cmd:
-                self._pos[0] += self._step
+                self._pos[0] = self._step
+                self._pos[1] = 0
             if 'down' in cmd:
-                self._pos[1] += self._step
+                self._pos[1] = self._step
+                self._pos[0] = 0
             if 'up' in cmd:
-                self._pos[1] -= self._step
-        else:
-            self._iter += 1
-            if self._iter > self._wait:
-                self._iter = 0
-                self._pos[0] += randint(-1, 1)
-                self._pos[1] += randint(-1, 1)
-        self._data['key'] = None
+                self._pos[1] = -self._step
+                self._pos[0] = 0
+        # else:
+        #     self._iter += 1
+        #     if self._iter > self._wait:
+        #         self._iter = 0
+        #         self._pos[0] += randint(-1, 1)
+        #         self._pos[1] += randint(-1, 1)
         if self._data.get('d_rad'):
-            self._radius += self._data.get('d_rad')
+            self._inc = self._data.get('d_rad')
         self._data['key'] = None
+        self.move()
+
+    def move(self):
+        for i in range(len(self._body)):
+            if i == 0:
+                segment = self._body[i].copy()
+                self._body[i] = [self._body[i][0] + self._pos[0],
+                                 self._body[i][1] + self._pos[1]]
+            else:
+                dx = segment[0] - self._body[i][0]
+                dy = segment[1] - self._body[i][1]
+                segment = self._body[i].copy()
+                if (abs(dx) > self._radius) or (abs(dy) > self._radius):
+                    dsx = self._step if dx >= 0 else -self._step
+                    dsy = self._step if dy >= 0 else -self._step
+                    self._body[i] = [self._body[i][0] + dsx, self._body[i][1] + dsy]
+        if self._inc > 0:
+            self._body.append(segment)
+            self._inc = 0
+        # print(self._body)
 
     def set_data(self, data):
         self._data = data
 
     def get_data(self):
-        return {'pos': self._pos, 'radius': self._radius, 'color': self._color}
+        return {'body': self._body, 'radius': self._radius, 'color': self._color}
 
 
 def handle(sock: socket.socket) -> any:
@@ -82,7 +108,7 @@ def send_data(sock, data):
 
 
 if __name__ == "__main__":
-    fps = 0.02
+    fps = 0.01
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as main_socket:
         main_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         main_socket.bind((HOST, PORT))
@@ -91,10 +117,10 @@ if __name__ == "__main__":
 
         player_sockets = []
         player_data = dict()
-        for i in range(COUNT):
-            pos = [randint(10, WIDTH - 10), randint(10, HEIGHT - 10)]
-            radius = randint(5, 20)
-            player_data[f"bot{i:03}"] = Player(pos=pos, radius=radius)
+        # for i in range(COUNT):
+        #     pos = [randint(10, WIDTH - 10), randint(10, HEIGHT - 10)]
+        #     radius = randint(5, 20)
+        #     player_data[f"bot{i:03}"] = Player(pos=pos, radius=radius)
 
         print('Server started at:', HOST, PORT)
         # Игровой цикл

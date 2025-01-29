@@ -9,14 +9,14 @@ import pygame
 
 
 HOST = "127.0.0.1"  # The server's hostname or IP address
-PORT = 5056  # The port used by the server
+PORT = 5057  # The port used by the server
 DATA_WIND = 8192
 
 pygame.init()
 size = width, height = 800, 600
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
-fps = 5
+fps = 20
 color = choice(['white', 'red', 'blue', 'green', 'yellow'])
 rnd = ['left', 'right', 'up', 'down']
 buff = ''
@@ -75,10 +75,11 @@ while True:
                 screen.fill('black')
                 #
                 for key, player in data.get('players', []).items():
-                    pos = player['pos']
+                    body = player['body']
                     radius = player['radius']
                     color = player['color']
-                    pygame.draw.circle(screen, color, pos, radius)
+                    for pos in body:
+                        pygame.draw.circle(screen, color, pos, radius)
                 #
                 pygame.display.flip()
                 # clock.tick(fps)
