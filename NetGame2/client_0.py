@@ -8,9 +8,11 @@ from random import choice
 import pygame
 
 
-HOST = "172.16.1.42"  # The server's hostname or IP address
+# HOST = "172.16.1.42"  # The server's hostname or IP address
+HOST = "localhost"  # The server's hostname or IP address
 PORT = 5058  # The port used by the server
 DATA_WIND = 8192
+SIZE_MUL = 2
 
 pygame.init()
 size = width, height = 1400, 800
@@ -81,7 +83,7 @@ while True:
                     len_body = len(body)
                     hero_length = player['length']
                     hero_life = player['life']
-                    radius = player['radius'] + len_body
+                    radius = player['radius'] + len_body // SIZE_MUL
                     color_r, color_g, color_b = player['color']
                     dr_color = (255 - color_r) // len_body
                     dg_color = (255 - color_g) // len_body
@@ -97,7 +99,7 @@ while True:
                             color = (color_r + dr_color * i,
                                      color_g + dg_color * i,
                                      color_b + db_color * i)
-                            radius = radius / 1.07
+                            radius = max(3, radius / 1.05)
                         if figure == 0:
                             pygame.draw.circle(screen, color, pos, _radius)
                         elif figure == 1:
@@ -105,8 +107,8 @@ while True:
                                                _radius, _radius)
                             pygame.draw.rect(screen, color, rect)
                     font = pygame.font.Font(size=25)
-                    surf_1 = font.render(str(hero_length), False, 'lightblue')
-                    surf_0 = font.render(str(hero_life), False, 'pink')
+                    surf_1 = font.render(f"{hero_length}", False, 'lightblue', 'black')
+                    surf_0 = font.render(f"{hero_life}", False, 'pink', 'black')
                     screen.blit(surf_0, (txt_pos[0], txt_pos[1] - 20))
                     screen.blit(surf_1, txt_pos)
                 pygame.display.flip()
@@ -114,5 +116,5 @@ while True:
     except ConnectionResetError:
         print('Try reconnect')
         continue
-    # except Exception as err:
-    #     print('All errors: ', err)
+    except Exception as err:
+        print('All errors: ', err)

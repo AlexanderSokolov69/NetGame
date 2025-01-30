@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 # coding:utf-8
+import colorsys
+import random
 import socket
 import time
 import json
 from random import randint
 
 
-HOST, PORT = '', 5058
-DATA_WIND = 8192
-FPS = 0.01
-STEP_WAIT = 8
+HOST, PORT = '', 5058  # address & port
+DATA_WIND = 8192  # размер пакета данных
+FPS = 0.05  # частота цикла
+STEP_WAIT = 0
 WIDTH, HEIGHT = 1400, 800
-STEP = 16
+STEP = 8
 RADIUS = 6
 COUNT = 50
 EAT_COUNT = 10
+SIZE_MUL = 2
 
 
 def random_coord():
@@ -29,12 +32,12 @@ class Eat:
         self._body = [random_coord()]
         self._radius = 8
         self._figure = 0
-        self._color = (50, 255,50)
-        self._life = randint(0, 1)
+        self._color = (10, 255, 10)
+        self._life = ''
 
     def get_data(self):
         return {'body': self._body, 'radius': self._radius, 'color': self._color,
-                'figure': self._figure, 'length': 'a', 'life': self._life}
+                'figure': self._figure, 'length': '', 'life': self._life}
 
     def get_head(self):
         return self._body[0]
@@ -50,7 +53,10 @@ class Player:
         self._radius = radius
         self._data = dict()
         self._step = STEP
-        self._color = (randint(100, 200), randint(100, 200), randint(10, 100))
+        h, s, l = random.random(), 0.5 + random.random() / 2.0, 0.4 + random.random() / 5.0
+        r, g, b = [int(256 * i) for i in colorsys.hls_to_rgb(h, l, s)]
+        self._color = (r, g, b)
+        #    (randint(100, 200), randint(100, 200), randint(10, 100))
         self._iter = 0
         self._wait = STEP_WAIT
         self._figure = 0
@@ -134,12 +140,12 @@ class Player:
 
     def is_in_head(self, pos):
         px, py = self._body[0]
-        h_size = self.get_length() + RADIUS
+        h_size = self.get_length() // SIZE_MUL + RADIUS
         return abs(pos[0] - px) < h_size and abs(pos[1] - py) < h_size
 
     def is_head_to_head(self, player):
         pos = player.get_head()
-        size = player.get_length() + self.get_length() + 2 * RADIUS
+        size = player.get_length() // SIZE_MUL + self.get_length() // SIZE_MUL + 2 * RADIUS
         delta_x = abs(self._body[0][0] - pos[0]) - size
         delta_y = abs(self._body[0][1] - pos[1]) - size
         return delta_x < 0 and delta_y < 0
@@ -150,13 +156,13 @@ class Player:
 
     def is_body_atak(self, player):
         x, y = player.get_head()
-        size = player.get_length() + RADIUS
+        size = player.get_length() // SIZE_MUL + RADIUS
         for i in range(1, self.get_length()):
             sx, sy = self._body[i]
             # print(sx, sy)
             if abs(x - sx) - size < 0 and abs(y - sy) - size < 0:
                 cut = self.get_length() - i
-                if cut < player.get_length():
+                if cut <= player.get_length():
                     self.del_segment(cut)
                     # print(cut)
                     return cut
