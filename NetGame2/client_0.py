@@ -13,10 +13,10 @@ PORT = 5058  # The port used by the server
 DATA_WIND = 8192
 
 pygame.init()
-size = width, height = 800, 600
+size = width, height = 1400, 800
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
-fps = 20
+fps = 10
 color = choice(['white', 'red', 'blue', 'green', 'yellow'])
 rnd = ['left', 'right', 'up', 'down']
 buff = ''
@@ -33,7 +33,7 @@ while True:
                         pygame.quit()
                         sys.exit()
                 keys = pygame.key.get_pressed()
-                cmd = {'key': [], 'step': 8}
+                cmd = {'key': []}
                 if any(keys):
                     if keys[pygame.K_LEFT]:
                         cmd['key'].append("left")
@@ -46,7 +46,7 @@ while True:
                     if keys[pygame.K_SPACE]:
                         cmd['d_rad'] = 1
                     if keys[pygame.K_BACKSPACE]:
-                        cmd['d_rad'] = -1
+                        cmd['d_rad'] = 20
                 # if len(cmd['key']) < 1:
                 #     cmd['key'].append(choice(rnd))
                 st = json.dumps(cmd)
@@ -73,19 +73,46 @@ while True:
                     except Exception as err:
                         print('==> ', err)
                         continue
-                screen.fill('black')
+                screen.fill('lightgreen')
                 #
                 for key, player in data.get('players', []).items():
                     body = player['body']
-                    radius = player['radius']
-                    color = player['color']
-                    for pos in body:
-                        pygame.draw.circle(screen, color, pos, radius)
-                #
+                    figure = player['figure']
+                    len_body = len(body)
+                    hero_length = player['length']
+                    hero_life = player['life']
+                    radius = player['radius'] + len_body
+                    color_r, color_g, color_b = player['color']
+                    dr_color = (255 - color_r) // len_body
+                    dg_color = (255 - color_g) // len_body
+                    db_color = (255 - color_b) // len_body
+                    txt_pos = [0, 0]
+                    for i, pos in enumerate(body):
+                        _radius = radius
+                        if i == 0:
+                            txt_pos = pos
+                            color = (color_r // 2, color_g // 2, color_b // 2)
+                            radius -= player['radius']
+                        else:
+                            color = (color_r + dr_color * i,
+                                     color_g + dg_color * i,
+                                     color_b + db_color * i)
+                            radius = radius / 1.07
+                        if figure == 0:
+                            pygame.draw.circle(screen, color, pos, _radius)
+                        elif figure == 1:
+                            rect = pygame.Rect(pos[0] - _radius // 2, pos[1] - _radius // 2,
+                                               _radius, _radius)
+                            pygame.draw.rect(screen, color, rect)
+                    font = pygame.font.Font(size=25)
+                    surf_1 = font.render(str(hero_length), False, 'lightblue')
+                    surf_0 = font.render(str(hero_life), False, 'pink')
+                    screen.blit(surf_0, (txt_pos[0], txt_pos[1] - 20))
+                    screen.blit(surf_1, txt_pos)
                 pygame.display.flip()
                 # clock.tick(fps)
     except ConnectionResetError:
         print('Try reconnect')
         continue
-    except Exception as err:
-        print('All errors: ', err)
+    # except Exception as err:
+    #     print('All errors: ', err)
