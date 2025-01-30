@@ -6,7 +6,7 @@ import json
 from random import randint
 
 
-HOST, PORT = '', 5057
+HOST, PORT = '', 5058
 DATA_WIND = 8192
 WIDTH, HEIGHT = 800, 600
 COUNT = 50
@@ -63,12 +63,16 @@ class Player:
                 self._body[i] = [self._body[i][0] + self._pos[0],
                                  self._body[i][1] + self._pos[1]]
             else:
-                dx = segment[0] - self._body[i][0]
-                dy = segment[1] - self._body[i][1]
+                dx = self._radius * ((segment[0] - self._body[i][0]) // self._radius)
+                dy = self._radius * ((segment[1] - self._body[i][1]) // self._radius)
                 segment = self._body[i].copy()
                 if (abs(dx) > self._radius) or (abs(dy) > self._radius):
-                    dsx = self._step if dx >= 0 else -self._step
-                    dsy = self._step if dy >= 0 else -self._step
+                    if abs(dx) > abs(dy):
+                        dsx = self._step if dx >= 0 else -self._step
+                        dsy = 0
+                    else:
+                        dsx = 0
+                        dsy = self._step if dy >= 0 else -self._step
                     self._body[i] = [self._body[i][0] + dsx, self._body[i][1] + dsy]
         if self._inc > 0:
             self._body.append(segment)

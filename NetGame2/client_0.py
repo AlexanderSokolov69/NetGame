@@ -8,8 +8,8 @@ from random import choice
 import pygame
 
 
-HOST = "127.0.0.1"  # The server's hostname or IP address
-PORT = 5057  # The port used by the server
+HOST = "172.16.1.42"  # The server's hostname or IP address
+PORT = 5058  # The port used by the server
 DATA_WIND = 8192
 
 pygame.init()
@@ -26,13 +26,14 @@ while True:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             s.connect((HOST, PORT))
+            print(s.getpeername())
             while True:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         pygame.quit()
                         sys.exit()
                 keys = pygame.key.get_pressed()
-                cmd = {'key': [], 'step': 2}
+                cmd = {'key': [], 'step': 8}
                 if any(keys):
                     if keys[pygame.K_LEFT]:
                         cmd['key'].append("left")
