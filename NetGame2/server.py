@@ -17,7 +17,7 @@ STEP = 10
 RADIUS = 8
 COUNT = 50
 EAT_COUNT = 10
-EAT_LIFE = 100
+EAT_LIFE = 150
 SIZE_MUL = 2
 
 
@@ -59,6 +59,11 @@ class Eat:
 
     def is_zero(self):
         self._count -= 1
+        r, g, b = self._color
+        r = max(50, r - 1)
+        g = max(10, g - 1)
+        b = max(0, b - 1)
+        self._color = (r, g, b)
         return self._count < 0
 
 
