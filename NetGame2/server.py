@@ -13,10 +13,11 @@ DATA_WIND = 8192  # размер пакета данных
 FPS = 0.05  # частота цикла
 STEP_WAIT = 0
 WIDTH, HEIGHT = 1400, 800
-STEP = 8
-RADIUS = 6
+STEP = 10
+RADIUS = 8
 COUNT = 50
 EAT_COUNT = 10
+EAT_LIFE = 100
 SIZE_MUL = 2
 
 
@@ -26,14 +27,28 @@ def random_coord():
     return [x, y]
 
 
+class Color:
+    data = [0.1, 0.95, 0.2, 0,85, 0.3, 0.75, 0.4, 0.65, 0.5,
+            0.55, 0.6, 0.45, 0.7, 0.35, 0.8, 0.25, 0.9, 0.15]
+    random.shuffle(data)
+    count = 0
+
+    def __init__(self):
+        h, s, l = Color.data[Color.count], 0.9, 0.4 + random.random() / 5.0
+        r, g, b = [int(256 * i) for i in colorsys.hls_to_rgb(h, l, s)]
+        self.color = (r, g, b)
+        Color.count = (Color.count + 1) % len(Color.data)
+
+
 class Eat:
     def __init__(self):
         self._pos = [0, 0]
         self._body = [random_coord()]
         self._radius = 8
         self._figure = 0
-        self._color = (10, 255, 10)
+        self._color = (255, 165, 0)
         self._life = ''
+        self._count = EAT_LIFE
 
     def get_data(self):
         return {'body': self._body, 'radius': self._radius, 'color': self._color,
@@ -41,6 +56,10 @@ class Eat:
 
     def get_head(self):
         return self._body[0]
+
+    def is_zero(self):
+        self._count -= 1
+        return self._count < 0
 
 
 class Player:
@@ -53,9 +72,7 @@ class Player:
         self._radius = radius
         self._data = dict()
         self._step = STEP
-        h, s, l = random.random(), 0.5 + random.random() / 2.0, 0.4 + random.random() / 5.0
-        r, g, b = [int(256 * i) for i in colorsys.hls_to_rgb(h, l, s)]
-        self._color = (r, g, b)
+        self._color = Color().color
         #    (randint(100, 200), randint(100, 200), randint(10, 100))
         self._iter = 0
         self._wait = STEP_WAIT
@@ -68,6 +85,20 @@ class Player:
         #     return
         if self._break == 0:
             cmd = self._data.get('key', [])
+            pos = self._data.get('pos', [])
+            if pos:
+                x, y = self._body[0]
+                px, py = pos
+                if abs(x - px) > abs(y - py):
+                    if x > px:
+                        cmd = 'left'
+                    else:
+                        cmd = 'right'
+                else:
+                    if y > py:
+                        cmd = 'up'
+                    else:
+                        cmd = 'down'
             if cmd:
                 # self._step = self._data.get('step', self._step)
                 if 'left' in cmd:
@@ -152,7 +183,7 @@ class Player:
 
     def breake(self):
         self._pos = [self._pos[0] * -1, self._pos[1] * -1]
-        self._break = len(self._body) * 2 + RADIUS
+        self._break = len(self._body) // 2 + RADIUS
 
     def is_body_atak(self, player):
         x, y = player.get_head()
@@ -271,9 +302,11 @@ if __name__ == "__main__":
 
             # Проверка поедания корма
             for eat in eat_data.copy():
+                if eat.is_zero():
+                    eat_data.remove(eat)
+                    continue
                 for addr, player in player_data.items():
                     if player.is_in_head(eat.get_head()):
-                        # print(eat.get_head(), player.get_head(), player.get_length())
                         player.add_segment()
                         eat_data.remove(eat)
                         break
