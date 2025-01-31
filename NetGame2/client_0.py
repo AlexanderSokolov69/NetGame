@@ -8,7 +8,7 @@ from random import choice
 import pygame
 
 
-# HOST = "172.16.1.42"  # The server's hostname or IP address
+# HOST = "172.16.1.33"  # The server's hostname or IP address
 HOST = "localhost"  # The server's hostname or IP address
 PORT = 5058  # The port used by the server
 DATA_WIND = 8192

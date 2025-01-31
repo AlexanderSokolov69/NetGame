@@ -15,10 +15,11 @@ STEP_WAIT = 0
 WIDTH, HEIGHT = 1400, 800
 STEP = 10
 RADIUS = 8
-COUNT = 50
-EAT_COUNT = 10
-EAT_LIFE = 150
+COUNT = 10
+EAT_COUNT = 15
+EAT_LIFE = 160
 SIZE_MUL = 2
+MIN_SAFE_LENGTH = 15
 
 
 def random_coord():
@@ -46,7 +47,7 @@ class Eat:
         self._body = [random_coord()]
         self._radius = 8
         self._figure = 0
-        self._color = (255, 165, 0)
+        self._color = (50, 255, 50)
         self._life = ''
         self._count = EAT_LIFE
 
@@ -60,7 +61,7 @@ class Eat:
     def is_zero(self):
         self._count -= 1
         r, g, b = self._color
-        r = max(50, r - 1)
+        r = min(200, r + 1)
         g = max(10, g - 1)
         b = max(0, b - 1)
         self._color = (r, g, b)
@@ -191,9 +192,12 @@ class Player:
         self._break = len(self._body) // 2 + RADIUS
 
     def is_body_atak(self, player):
+        start_segment = 1
+        if player == self:
+            start_segment = MIN_SAFE_LENGTH
         x, y = player.get_head()
         size = player.get_length() // SIZE_MUL + RADIUS
-        for i in range(1, self.get_length()):
+        for i in range(start_segment, self.get_length()):
             sx, sy = self._body[i]
             # print(sx, sy)
             if abs(x - sx) - size < 0 and abs(y - sy) - size < 0:
@@ -242,9 +246,9 @@ if __name__ == "__main__":
 
         player_sockets = []
         player_data = dict()
-        player_data['123'] = Player()
-        player_data['123'].add_segment(10)
-        player_data['123'].set_data({'key': 'left'})
+        # player_data['123'] = Player()
+        # player_data['123'].add_segment(10)
+        # player_data['123'].set_data({'key': 'left'})
         # player_data['124'] = Player()
         eat_data = []
         # for i in range(COUNT):
@@ -255,6 +259,7 @@ if __name__ == "__main__":
         print('Server started at:', HOST, PORT)
         # Игровой цикл
         clock = time.time()
+        new_eat_counter = 0
         while True:
             time_pause = fps - (time.time() - clock)
             if time_pause > 0:
@@ -293,16 +298,17 @@ if __name__ == "__main__":
             for addr, player in player_data.items():
                 player.prepare()
                 for addr2, player2 in player_data.items():
+                    count = player.is_body_atak(player2)
+                    if count > 0:
+                        if addr2 != addr:
+                            player2.add_segment(count, 1)
+                    elif count < 0:
+                        player2.breake()
+                        continue
                     if addr2 == addr:
                         continue
                     if player.is_head_to_head(player2):
                         player.breake()
-                        continue
-                    count = player.is_body_atak(player2)
-                    if count > 0:
-                        player2.add_segment(count, 1)
-                    elif count < 0:
-                        player2.breake()
                         continue
 
             # Проверка поедания корма
@@ -316,8 +322,11 @@ if __name__ == "__main__":
                         eat_data.remove(eat)
                         break
 
-            if len(eat_data) < EAT_COUNT:
-                eat_data.append(Eat())
+            if new_eat_counter == COUNT:
+                new_eat_counter = 0
+                if len(eat_data) < EAT_COUNT:
+                    eat_data.append(Eat())
+            new_eat_counter += 1
 
             # Передача данных игрокам
             data = dict()
