@@ -10,8 +10,8 @@ from random import randint
 
 HOST, PORT = '', 5058  # address & port
 DATA_WIND = 8192  # размер пакета данных
-FPS = 0.05  # частота цикла
-STEP_WAIT = 0
+FPS = 0.03  # частота цикла
+STEP_WAIT = 2
 WIDTH, HEIGHT = 1400, 800
 STEP = 10
 RADIUS = 8
@@ -77,9 +77,9 @@ class Player:
         self._inc = 0
         self._radius = radius
         self._data = dict()
+        self._data_out = dict()
         self._step = STEP
         self._color = Color().color
-        #    (randint(100, 200), randint(100, 200), randint(10, 100))
         self._iter = 0
         self._wait = STEP_WAIT
         self._figure = 0
@@ -106,7 +106,6 @@ class Player:
                     else:
                         cmd = 'down'
             if cmd:
-                # self._step = self._data.get('step', self._step)
                 if 'left' in cmd:
                     self._pos[0] = -self._step
                     self._pos[1] = 0
@@ -121,14 +120,6 @@ class Player:
                     self._pos[0] = 0
         else:
             self._break -= 1
-        # else:
-        #     self._iter += 1
-        #     if self._iter > self._wait:
-        #         self._iter = 0
-        #         self._pos[0] += randint(-1, 1)
-        #         self._pos[1] += randint(-1, 1)
-        if self._data.get('d_rad'):
-            self._inc = self._data.get('d_rad')
         self._data['key'] = None
         self._iter += 1
         if self._iter > self._wait:
@@ -144,11 +135,7 @@ class Player:
             else:
                 segment, self._body[i] = self._body[i], segment
         self.add_segment(count=self._inc)
-        # if self._inc > 0:
-        #     for _ in range(self._inc):
-        #         self._body.append(segment)
         self._inc = 0
-        # print(self._body)
 
     def add_segment(self, count=1, life=0):
         self._life += life
@@ -166,8 +153,15 @@ class Player:
         self._data = data
 
     def get_data(self):
-        return {'body': self._body, 'radius': self._radius, 'color': self._color,
-                'figure': self._figure, 'length': self.get_length(), 'life': self._life}
+        self._data_out['body'] = self._body
+        self._data_out['radius'] = self._radius
+        self._data_out['color'] = self._color
+        self._data_out['figure'] = self._figure
+        self._data_out['length'] = self.get_length()
+        self._data_out['life'] = self._life
+        to_send = self._data_out.copy()
+        self._data_out.clear()
+        return to_send
 
     def get_head(self):
         return self._body[0]
@@ -178,7 +172,10 @@ class Player:
     def is_in_head(self, pos):
         px, py = self._body[0]
         h_size = self.get_length() // SIZE_MUL + RADIUS
-        return abs(pos[0] - px) < h_size and abs(pos[1] - py) < h_size
+        ret = abs(pos[0] - px) < h_size and abs(pos[1] - py) < h_size
+        if ret:
+            self._data_out['sound'] = 'eat'
+        return ret
 
     def is_head_to_head(self, player):
         pos = player.get_head()
@@ -190,6 +187,7 @@ class Player:
     def breake(self):
         self._pos = [self._pos[0] * -1, self._pos[1] * -1]
         self._break = len(self._body) // 2 + RADIUS
+        self._data_out['sound'] = 'break'
 
     def is_body_atak(self, player):
         start_segment = 1
@@ -204,7 +202,7 @@ class Player:
                 cut = self.get_length() - i
                 if cut <= player.get_length():
                     self.del_segment(cut)
-                    # print(cut)
+                    self._data_out['sound'] = 'ataka'
                     return cut
                 else:
                     return -1
@@ -246,15 +244,13 @@ if __name__ == "__main__":
 
         player_sockets = []
         player_data = dict()
-        # player_data['123'] = Player()
-        # player_data['123'].add_segment(10)
-        # player_data['123'].set_data({'key': 'left'})
-        # player_data['124'] = Player()
         eat_data = []
-        # for i in range(COUNT):
-        #     pos = [randint(10, WIDTH - 10), randint(10, HEIGHT - 10)]
-        #     radius = randint(5, 20)
-        #     player_data[f"bot{i:03}"] = Player(pos=pos, radius=radius)
+
+        for i in range(10):
+            player = Player()
+            player.set_data({'key': 'left'})
+            player.add_segment(12)
+            player_data[f"bot{i:03}"] = player
 
         print('Server started at:', HOST, PORT)
         # Игровой цикл

@@ -18,11 +18,25 @@ pygame.init()
 size = width, height = 1400, 800
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
-fps = 10
+fps = 4
 color = choice(['white', 'red', 'blue', 'green', 'yellow'])
 rnd = ['left', 'right', 'up', 'down']
 buff = ''
+sound_brake = pygame.mixer.Sound('data/brake.ogg')
+sound_eat = pygame.mixer.Sound('data/eat.ogg')
+sound_ataka = pygame.mixer.Sound('data/ataka.ogg')
 
+
+def play_sound(sound: str):
+    if 'break' in sound:
+        sound_brake.play()
+    elif 'eat' in sound:
+        sound_eat.play()
+    elif 'ataka' in sound:
+        sound_ataka.play()
+
+
+play_sound('eat')
 while True:
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -38,7 +52,6 @@ while True:
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         cmd['pos'] = event.pos
                 keys = pygame.key.get_pressed()
-
                 if any(keys):
                     if keys[pygame.K_LEFT]:
                         cmd['key'].append("left")
@@ -48,12 +61,6 @@ while True:
                         cmd['key'].append("up")
                     if keys[pygame.K_DOWN]:
                         cmd['key'].append("down")
-                    # if keys[pygame.K_SPACE]:
-                    #     cmd['d_rad'] = 1
-                    # if keys[pygame.K_BACKSPACE]:
-                    #     cmd['d_rad'] = 20
-                # if len(cmd['key']) < 1:
-                #     cmd['key'].append(choice(rnd))
                 st = json.dumps(cmd)
                 try:
                     s.send(st.encode())
@@ -81,6 +88,9 @@ while True:
                 screen.fill(pygame.Color((0, 50, 0)))
                 #
                 for key, player in data.get('players', []).items():
+                    sound = player.get('sound', '')
+                    if sound:
+                        play_sound(sound)
                     body = player['body']
                     figure = player['figure']
                     len_body = len(body)
