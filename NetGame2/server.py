@@ -53,7 +53,7 @@ class Player:
         self._radius = radius
         self._data = dict()
         self._step = STEP
-        h, s, l = random.random(), 0.5 + random.random() / 2.0, 0.4 + random.random() / 5.0
+        h, s, l = random.choice([ii / 10 for ii in range(1, 11)]), 0.5 + random.random() / 2.0, 0.2 + random.random() / 5.0
         r, g, b = [int(256 * i) for i in colorsys.hls_to_rgb(h, l, s)]
         self._color = (r, g, b)
         #    (randint(100, 200), randint(100, 200), randint(10, 100))
@@ -152,7 +152,7 @@ class Player:
 
     def breake(self):
         self._pos = [self._pos[0] * -1, self._pos[1] * -1]
-        self._break = len(self._body) * 2 + RADIUS
+        self._break = min(20, len(self._body)) + RADIUS
 
     def is_body_atak(self, player):
         x, y = player.get_head()
