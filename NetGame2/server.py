@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding:utf-8
+import datetime
 import colorsys
 import random
 import socket
@@ -7,6 +8,7 @@ import time
 import json
 from random import randint
 
+from NetGame2.const import Const
 
 HOST, PORT = '', 5058  # address & port
 DATA_WIND = 8192  # размер пакета данных
@@ -23,8 +25,8 @@ MIN_SAFE_LENGTH = 15
 
 
 def random_coord():
-    x = STEP * ((randint(5, WIDTH - 5)) // STEP)
-    y = STEP * ((randint(5, HEIGHT - 5)) // STEP)
+    x = 20 * ((STEP * ((randint(5, WIDTH - 5)) // STEP)) // 20)
+    y = 20 * ((STEP * ((randint(5, HEIGHT - 5)) // STEP)) // 20)
     return [x, y]
 
 
@@ -209,132 +211,180 @@ class Player:
         return 0
 
 
-def handle(sock: socket.socket) -> any:
-    data = None
-    try:
-        data = sock.recv(DATA_WIND).decode()  # Should be ready
-    except ConnectionError:
-        print(f"Client suddenly closed while receiving {sock}")
-        return None
-    except BlockingIOError:
-        pass
-    except Exception as e:
-        print('Receive error:', e)
-    return data
+class Network:
+    def __init__(self):
+        self.clients = []
+        self.player_sockets = []
+        self.player_data = dict()
+        self.eat_data = []
+        self.main_socket = self.init_socket()
+        self.game_time = datetime.datetime.now()
+        self.common_data = {'HOST': Const.data['HOST'], 'PORT': Const.data['PORT'],
+                            'WINNER': ''}
+        self.reset_game()
 
+    def prepare_to_send(self):
+        data = dict()
+        for addr, player in self.player_data.items():
+            data[addr] = player.get_data()
+        for i, eat in enumerate(self.eat_data):
+            data[f'eat{i:03}'] = eat.get_data()
+        ret = dict()
+        ret['players'] = data
+        if self.common_data['WINNER']:
+            ret['WINNER'] = self.common_data['WINNER']
+            self.common_data['WINNER'] = ''
+        timer = Const.data['GAME_TIME'] - self.get_time_sec()
+        ret['TIMER'] = timer
+        # print(timer)
+        return ret
 
-def send_data(sock, data):
-    try:
-        sock.sendall(data.encode())  # Hope it won't block
-    except ConnectionError:
-        print(f"Client suddenly closed, cannot send")
-        return False
-    except BlockingIOError:
-        pass
-    return True
-
-
-if __name__ == "__main__":
-    fps = FPS
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as main_socket:
+    def init_socket(self):
+        main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         main_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        main_socket.bind((HOST, PORT))
+        main_socket.bind((Const.data['HOST'], Const.data['PORT']))
         main_socket.setblocking(False)
         main_socket.listen(1)
+        print('Server started at:', Const.data['HOST'], Const.data['PORT'])
+        return main_socket
 
-        player_sockets = []
-        player_data = dict()
-        eat_data = []
+    def init_game(self):
+        if datetime.datetime.now() - self.game_time > datetime.timedelta(
+                seconds=Const.data['GAME_TIME']):
+            self.game_time = datetime.datetime.now()
+            self.reset_game()
 
+    def get_time_sec(self):
+        return (datetime.datetime.now().second + datetime.datetime.now().minute * 60) - (
+                self.game_time.second + self.game_time.minute * 60)
+
+    def reset_game(self):
+        count = ''
+        self.game_time = datetime.datetime.now()
+        win_addr = '' if len(list(self.player_data.keys())) == 0 else list(self.player_data.keys())[0]
+        for addr, player in self.player_data.items():
+            if player.get_length() > self.player_data[win_addr].get_length():
+                win_addr = addr
+                count = f"{win_addr}. Длина: {player.get_length()}."
+        self.common_data['WINNER'] = count
+        print('Winner:', win_addr)
+        print('new game!')
         for i in range(10):
             player = Player()
             player.set_data({'key': 'left'})
             player.add_segment(12)
-            player_data[f"bot{i:03}"] = player
+            self.player_data[f"bot{i:03}"] = player
+        for addr in self.player_data.keys():
+            if addr[0] != 'b':
+                self.player_data[addr] = Player()
 
-        print('Server started at:', HOST, PORT)
-        # Игровой цикл
+    def handle(self, sock: socket.socket) -> any:
+        data = None
+        try:
+            data = sock.recv(DATA_WIND).decode()  # Should be ready
+        except ConnectionError:
+            print(f"Client suddenly closed while receiving {sock}")
+            return None
+        except BlockingIOError:
+            pass
+        except Exception as e:
+            print('Receive error:', e)
+        return data
+
+    def send_data(self, sock, data):
+        try:
+            sock.sendall(data.encode())  # Hope it won't block
+        except ConnectionError:
+            print(f"Client suddenly closed, cannot send")
+            return False
+        except BlockingIOError:
+            pass
+        return True
+
+
+if __name__ == "__main__":
+    fps = FPS
+    srv_host = Network()
+
+    # Игровой цикл
+    clock = time.time()
+    new_eat_counter = 0
+    while True:
+        time_pause = fps - (time.time() - clock)
+        if time_pause > 0:
+            time.sleep(time_pause)
         clock = time.time()
-        new_eat_counter = 0
-        while True:
-            time_pause = fps - (time.time() - clock)
-            if time_pause > 0:
-                time.sleep(time_pause)
-            clock = time.time()
-            try:
-                new_socket, addr = main_socket.accept()
-                addr = addr[0]
-                main_socket.setblocking(False)
-                player_sockets.append(new_socket)
-                player_data[addr] = player_data.get(addr, Player())
-                print('Connection from:', addr)
-            except BlockingIOError:
-                pass
+        srv_host.init_game()
+        try:
+            new_socket, addr = srv_host.main_socket.accept()
+            addr = addr[0]
+            srv_host.main_socket.setblocking(False)
+            srv_host.player_sockets.append(new_socket)
+            srv_host.player_data[addr] = srv_host.player_data.get(addr, Player())
+            print('Connection from:', addr)
+        except BlockingIOError:
+            pass
 
-            # Получаем данные от игроков
-            # player_data.clear()
-            addr = ''
-            for sock in player_sockets.copy():
-                if 'raddr' not in sock.__repr__():
+        # Получаем данные от игроков
+        # player_data.clear()
+        addr = ''
+        for sock in srv_host.player_sockets.copy():
+            if 'raddr' not in sock.__repr__():
+                continue
+            addr = sock.getpeername()
+            addr = addr[0]
+            data = srv_host.handle(sock)
+            if data:
+                try:
+                    data = json.loads(data)
+                    # print('Received from:', addr, data)
+                except json.JSONDecodeError:
+                    data = dict()
+                srv_host.player_data[addr].set_data(data)
+
+            # Обработка активности
+
+        # Игровая механика
+        for addr, player in srv_host.player_data.items():
+            player.prepare()
+            for addr2, player2 in srv_host.player_data.items():
+                count = player.is_body_atak(player2)
+                if count > 0:
+                    if addr2 != addr:
+                        player2.add_segment(count, 1)
+                elif count < 0:
+                    player2.breake()
                     continue
-                addr = sock.getpeername()
-                addr = addr[0]
-                data = handle(sock)
-                if data:
-                    try:
-                        data = json.loads(data)
-                        # print('Received from:', addr, data)
-                    except json.JSONDecodeError:
-                        data = dict()
-                    player_data[addr].set_data(data)
-
-                # Обработка активности
-
-            # Игровая механика
-            for addr, player in player_data.items():
-                player.prepare()
-                for addr2, player2 in player_data.items():
-                    count = player.is_body_atak(player2)
-                    if count > 0:
-                        if addr2 != addr:
-                            player2.add_segment(count, 1)
-                    elif count < 0:
-                        player2.breake()
-                        continue
-                    if addr2 == addr:
-                        continue
-                    if player.is_head_to_head(player2):
-                        player.breake()
-                        continue
-
-            # Проверка поедания корма
-            for eat in eat_data.copy():
-                if eat.is_zero():
-                    eat_data.remove(eat)
+                if addr2 == addr:
                     continue
-                for addr, player in player_data.items():
-                    if player.is_in_head(eat.get_head()):
-                        player.add_segment()
-                        eat_data.remove(eat)
-                        break
+                if player.is_head_to_head(player2):
+                    player.breake()
+                    continue
 
-            if new_eat_counter == COUNT:
-                new_eat_counter = 0
-                if len(eat_data) < EAT_COUNT:
-                    eat_data.append(Eat())
-            new_eat_counter += 1
+        # Проверка поедания корма
+        for eat in srv_host.eat_data.copy():
+            if eat.is_zero():
+                srv_host.eat_data.remove(eat)
+                continue
+            for addr, player in srv_host.player_data.items():
+                if player.is_in_head(eat.get_head()):
+                    player.add_segment()
+                    srv_host.eat_data.remove(eat)
+                    break
 
-            # Передача данных игрокам
-            data = dict()
-            for addr, player in player_data.items():
-                data[addr] = player.get_data()
-            for i, eat in enumerate(eat_data):
-                data[f'eat{i:03}'] = eat.get_data()
-            try:
-                data = '#####' + json.dumps({'players': data}) + '%%%%%'
-            except Exception as err:
-                print('Error prepare to send:', err)
-            for sock in player_sockets:
-                if not send_data(sock, data):
-                    player_sockets.remove(sock)
-                    sock.close()
+        if new_eat_counter == COUNT:
+            new_eat_counter = 0
+            if len(srv_host.eat_data) < EAT_COUNT:
+                srv_host.eat_data.append(Eat())
+        new_eat_counter += 1
+
+        # Передача данных игрокам
+        data = srv_host.prepare_to_send()
+        try:
+            data = '#####' + json.dumps(data) + '%%%%%'
+        except Exception as err:
+            print('Error prepare to send:', err)
+        for sock in srv_host.player_sockets:
+            if not srv_host.send_data(sock, data):
+                srv_host.player_sockets.remove(sock)
+                sock.close()
