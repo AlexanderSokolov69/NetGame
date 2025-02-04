@@ -17,7 +17,7 @@ pygame.init()
 S_SIZE = S_WIDTH, S_HEIGHT = 850, 600
 screen = pygame.display.set_mode(S_SIZE)
 s_clock = pygame.time.Clock()
-S_FPS = 80
+S_FPS = 30
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
 font2 = pygame.font.Font('data/Capsmall.ttf', size=30)
@@ -39,10 +39,10 @@ coords = set()
 
 
 def random_coord():
-    x, y = 20, 20
+    x, y = 50, 50
     while (x, y) in coords:
-        x = 20 * ((STEP * ((randint(5, WIDTH - 5)) // STEP)) // 20)
-        y = 20 * ((STEP * ((randint(5, HEIGHT - 5)) // STEP)) // 20)
+        x = 50 * ((STEP * ((randint(50, WIDTH - 50)) // STEP)) // 50)
+        y = 50 * ((STEP * ((randint(50, HEIGHT - 50)) // STEP)) // 50)
     coords.add((x, y))
     return [x, y]
 

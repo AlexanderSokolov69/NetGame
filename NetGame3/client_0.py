@@ -43,7 +43,7 @@ class MainMenu():
             rect = surface.get_rect()
             rect = (rect[0] + l_text, rect[1] + h_text, rect[2], rect[3])
             self.text_rect.append(rect)
-        print(self.text_rect)
+        # print(self.text_rect)
 
     def exec(self, scr: pygame.Surface):
         while True:
@@ -68,12 +68,15 @@ fps = 4
 color = choice(['white', 'red', 'blue', 'green', 'yellow'])
 rnd = ['left', 'right', 'up', 'down']
 buff = ''
-sound_brake = pygame.mixer.Sound('data/brake.ogg')
+my_addr = '-.-.-.-'
+sound_brake = pygame.mixer.Sound('data/break1.ogg')
 sound_eat = pygame.mixer.Sound('data/eat.ogg')
 sound_ataka = pygame.mixer.Sound('data/ataka.ogg')
 
 
-def play_sound(sound: str):
+def play_sound(sound: str, addr=''):
+    if addr != my_addr:
+        return
     if 'break' in sound:
         sound_brake.play()
     elif 'eat' in sound:
@@ -85,13 +88,15 @@ def play_sound(sound: str):
 play_sound('eat')
 game = True
 menu = MainMenu()
+convert_error = True
 while game:
     game = menu.exec(screen)
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             s.connect((Const.data['HOST'], Const.data['PORT']))
-            print(s.getpeername())
+            my_addr = s.getsockname()[0]
+            print(' ADDR:', my_addr)
             flag = game
             while flag:
                 cmd = {'key': []}
@@ -144,11 +149,11 @@ while game:
                     pygame.display.set_caption(f"До конца раунда осталось: {data['TIMER']} секунд...")
                     screen.fill(pygame.Color((0, 50, 0)))
                     #
-                    for key, player in data.get('players', []).items():
+                    for addr, player in data.get('players', []).items():
                         # print(player)
                         sound = player.get('sound', '')
                         if sound:
-                            play_sound(sound)
+                            play_sound(sound, addr)
                         body = player['body']
                         figure = player['figure']
                         len_body = len(body)
