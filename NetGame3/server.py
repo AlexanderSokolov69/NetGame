@@ -55,11 +55,19 @@ eat_sprites = pygame.sprite.Group()
 class MySprite(pygame.sprite.Sprite):
     def __init__(self, pos, radius, color, *args):
         super().__init__(*args)
+        self._radius = radius
+        self.image, self.rect = self.new_radius(radius, color)
+        self.move_point(pos)
+
+    def move_point(self, pos):
+        self.rect.x = pos[0] - self._radius
+        self.rect.y = pos[1] - self._radius
+
+    def new_radius(self, radius, color):
         image = pygame.Surface((radius * 2, radius * 2))
-        pygame.draw.circle(image, color, (radius, radius), radius, 2)
-        self.image = image
-        self.rect = self.image.get_rect()
-        self.rect.move(*pos)
+        pygame.draw.circle(image, color, (radius, radius), radius)
+        self._radius = radius
+        return image, image.get_rect()
 
 
 class Color:
@@ -124,7 +132,7 @@ class Player(MySprite):
         self._life = 1
         super().__init__(self._body[0], self._radius, self._color, all_sprites)
 
-    def prepare(self):
+    def update(self):
         # if not self._data:
         #     return
         if self._break == 0:
@@ -170,7 +178,8 @@ class Player(MySprite):
                 segment = self._body[i].copy()
                 self._body[i] = [(self._body[i][0] + self._pos[0]) % WIDTH,
                                  (self._body[i][1] + self._pos[1]) % HEIGHT]
-                self.rect.move(self._body[0])
+                self.move_point(self._body[0])
+                # print(self.rect, '|', self._pos, '|', self._body[0])
             else:
                 segment, self._body[i] = self._body[i], segment
         self.add_segment(count=self._inc)
@@ -181,6 +190,8 @@ class Player(MySprite):
         segment = self._body[-1]
         for _ in range(count):
             self._body.append(segment)
+        self.image, self.rect = self.new_radius(max(10, RADIUS + len(self._body) // SIZE_MUL), self._color)
+        self.move_point(self._body[0])
 
     def del_segment(self, count=1):
         for _ in range(count):
@@ -215,12 +226,13 @@ class Player(MySprite):
         px, py = self._body[0]
         h_size = self.get_length() // SIZE_MUL + RADIUS
         ret = abs(pos[0] - px) < h_size and abs(pos[1] - py) < h_size
-        if ret:
-            self._data_out['sound'] = 'eat'
         return ret
 
     def eat_in_head(self):
-        return pygame.sprite.spritecollideany(self, eat_sprites)
+        ret = pygame.sprite.spritecollide(self, eat_sprites, True)
+        if ret:
+            self._data_out['sound'] = 'eat'
+        return ret
 
     def is_head_to_head(self, player):
         pos = player.get_head()
@@ -248,10 +260,15 @@ class Player(MySprite):
                 if cut <= player.get_length():
                     self.del_segment(cut)
                     self._data_out['sound'] = 'ataka'
+                    player.add_data({'sound': 'ataka'})
                     return cut
                 else:
                     return -1
         return 0
+
+    def add_data(self, rec: dict):
+        for key, val in rec.items():
+            self._data_out[key] = val
 
 
 class Network:
@@ -259,7 +276,7 @@ class Network:
         self.clients = []
         self.player_sockets = []
         self.player_data = dict()
-        self.eat_data = []
+        # self.eat_data = []
         self.main_socket = self.init_socket()
         self.game_time = datetime.datetime.now()
         self.common_data = {'HOST': HOST, 'PORT': Const.data['PORT'],
@@ -270,7 +287,7 @@ class Network:
         # self.step_wait = Const.data['STEP_WAIT']
         self.rect_area = {'game_timer': [pygame.Rect(710, 170, 15, 15), pygame.Rect(790, 170, 20, 15)],
                           'bots_counter': [pygame.Rect(710, 210, 15, 15), pygame.Rect(767, 210, 20, 15)],
-                          'step_wait': [pygame.Rect(710, 250, 15, 15), pygame.Rect(767, 250, 20, 15)]
+                          'step_wait': [pygame.Rect(710, 250, 15, 15), pygame.Rect(760, 250, 20, 15)]
                           }
         self.reset_game()
 
@@ -295,7 +312,7 @@ class Network:
         data = dict()
         for addr, player in self.player_data.items():
             data[addr] = player.get_data()
-        for i, eat in enumerate(self.eat_data):
+        for i, eat in enumerate(eat_sprites):
             data[f'eat{i:03}'] = eat.get_data()
         ret = dict()
         ret['players'] = data
@@ -379,17 +396,13 @@ class Network:
 if __name__ == "__main__":
     # fps = FPS
     srv_host = Network()
-    texts = []
-    texts.append(font2.render(f"Сервер запущен. Адрес: {HOST} Порт: {Const.data['PORT']}",
-                            True, 'red'))
-    texts.append(font2.render("Последний победитель:",
-                            True, 'green'))
-    texts.append(font2.render('Ботов в игре:', True, 'orange'))
-    texts.append(font2.render('Длина тайма:', True, 'orange'))
-    texts.append(font2.render('Скорость:', True, 'orange'))
+    texts = [font2.render(f"Сервер запущен. Адрес: {HOST} Порт: {Const.data['PORT']}",True, 'red'),
+             font2.render("Последний победитель:",True, 'green'),
+             font2.render('Ботов в игре:', True, 'orange'),
+             font2.render('Длина тайма:', True, 'orange'),
+             font2.render('Скорость:', True, 'orange')]
 
     # Игровой цикл
-    # clock = time.time()
     new_eat_counter = 0
     cicle = True
     while cicle:
@@ -405,7 +418,6 @@ if __name__ == "__main__":
             pass
 
         # Получаем данные от игроков
-        # player_data.clear()
         addr = ''
         for sock in srv_host.player_sockets.copy():
             if 'raddr' not in sock.__repr__():
@@ -416,16 +428,15 @@ if __name__ == "__main__":
             if data:
                 try:
                     data = json.loads(data)
-                    # print('Received from:', addr, data)
                 except json.JSONDecodeError:
                     data = dict()
                 srv_host.player_data[addr].set_data(data)
 
-            # Обработка активности
-
+        # Обработка активности
+        # ------------------------------------------------------
         # Игровая механика
+        all_sprites.update()
         for addr, player in srv_host.player_data.items():
-            player.prepare()
             for addr2, player2 in srv_host.player_data.items():
                 count = player.is_body_atak(player2)
                 if count > 0:
@@ -446,13 +457,11 @@ if __name__ == "__main__":
             eat = player.eat_in_head()
             if eat:
                 player.add_segment()
-                eat_sprites.remove(eat)
                 break
-
         if new_eat_counter == COUNT:
             new_eat_counter = 0
-            if len(srv_host.eat_data) < EAT_COUNT:
-                srv_host.eat_data.append(Eat())
+            if len(eat_sprites) < EAT_COUNT:
+                Eat()
         new_eat_counter += 1
 
         # Передача данных игрокам

@@ -33,7 +33,7 @@ def load_image(name, colorkey=None):
     return image
 
 
-class MainMenu():
+class MainMenu:
     def __init__(self):
         self.image = pygame.transform.scale(load_image('fon.png'), size)
         font = pygame.font.Font(size=50)
@@ -65,14 +65,14 @@ pygame.init()
 size = width, height = 1400, 800
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
-fps = 4
+# fps = 4
 color = choice(['white', 'red', 'blue', 'green', 'yellow'])
 rnd = ['left', 'right', 'up', 'down']
 buff = ''
 my_addr = '-.-.-.-'
 sound_brake = pygame.mixer.Sound('data/break1.ogg')
 sound_eat = pygame.mixer.Sound('data/eat.ogg')
-sound_ataka = pygame.mixer.Sound('data/ataka.ogg')
+sound_ataka = pygame.mixer.Sound('data/brake.ogg')
 
 
 def play_sound(sound: str, addr=''):
@@ -128,6 +128,7 @@ while game:
                 except Exception as err:
                     print('Error of receive:', err)
 
+                data = dict()
                 while buff.find('%%%%%') >= 0:
                     pos = buff.find('%%%%%')
                     data = buff[5:pos]
@@ -160,7 +161,8 @@ while game:
                         len_body = len(body)
                         hero_length = player['length']
                         hero_life = player['life']
-                        radius = max(10, player['radius'] + len_body // SIZE_MUL)
+                        radius = player['radius']
+                        # print(radius)
                         color_r, color_g, color_b = player['color']
                         dr_color = (255 - color_r) // len_body
                         dg_color = (255 - color_g) // len_body
@@ -173,12 +175,12 @@ while game:
                                 txt_pos = pos
                                 div = min(2, len(body))
                                 color = (color_r // div, color_g // div, color_b // div)
-                                radius -= player['radius']
+                                radius -= 4
                             else:
                                 color = (color_r + dr_color * i,
                                          color_g + dg_color * i,
                                          color_b + db_color * i)
-                                radius = max(3, radius / 1.05)
+                                radius = max(3, radius / 1.1)
                             if figure == 0:
                                 pygame.draw.circle(screen, color, pos, _radius, contour)
                                 contour = 2
