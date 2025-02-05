@@ -75,7 +75,7 @@ class Color:
         Color.count = (Color.count + 1) % len(Color.data)
 
 
-class Eat:
+class Eat(MySprite):
     def __init__(self):
         self._pos = [0, 0]
         self._body = [random_coord()]
@@ -83,8 +83,8 @@ class Eat:
         self._figure = 0
         self._color = (50, 255, 50)
         self._life = ''
+        super().__init__(self._body[0], self._radius, self._color, eat_sprites)
         self._count = EAT_LIFE
-        self.sprites = [MySprite(self._body[0], self._radius, self._color, eat_sprites)]
 
     def get_data(self):
         return {'body': self._body, 'radius': self._radius, 'color': self._color,
@@ -93,7 +93,7 @@ class Eat:
     def get_head(self):
         return self._body[0]
 
-    def is_zero(self):
+    def update(self):
         self._count -= 1
         r, g, b = self._color
         r = min(200, r + 1)
@@ -105,14 +105,7 @@ class Eat:
         return self._count < 0
 
 
-
-class MyEat(Eat):
-    def __init__(self, *args):
-        super().__init__(*args)
-
-
-
-class Player:
+class Player(MySprite):
     def __init__(self, pos=None, radius=RADIUS):
         if pos is None:
             pos = random_coord()
@@ -129,6 +122,7 @@ class Player:
         self._figure = 0
         self._break = 0
         self._life = 1
+        super().__init__(self._body[0], self._radius, self._color, all_sprites)
 
     def prepare(self):
         # if not self._data:
@@ -176,6 +170,7 @@ class Player:
                 segment = self._body[i].copy()
                 self._body[i] = [(self._body[i][0] + self._pos[0]) % WIDTH,
                                  (self._body[i][1] + self._pos[1]) % HEIGHT]
+                self.rect.move(self._body[0])
             else:
                 segment, self._body[i] = self._body[i], segment
         self.add_segment(count=self._inc)
@@ -223,6 +218,9 @@ class Player:
         if ret:
             self._data_out['sound'] = 'eat'
         return ret
+
+    def eat_in_head(self):
+        return pygame.sprite.spritecollideany(self, eat_sprites)
 
     def is_head_to_head(self, player):
         pos = player.get_head()
@@ -443,15 +441,13 @@ if __name__ == "__main__":
                     continue
 
         # Проверка поедания корма
-        for eat in srv_host.eat_data.copy():
-            if eat.is_zero():
-                # srv_host.eat_data.remove(eat)
-                continue
-            for addr, player in srv_host.player_data.items():
-                if player.is_in_head(eat.get_head()):
-                    player.add_segment()
-                    srv_host.eat_data.remove(eat)
-                    break
+        eat_sprites.update()
+        for addr, player in srv_host.player_data.items():
+            eat = player.eat_in_head()
+            if eat:
+                player.add_segment()
+                eat_sprites.remove(eat)
+                break
 
         if new_eat_counter == COUNT:
             new_eat_counter = 0
