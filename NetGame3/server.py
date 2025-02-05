@@ -7,6 +7,7 @@ import socket
 import sys
 import time
 import json
+import zlib
 from random import randint
 
 import pygame
@@ -17,13 +18,13 @@ pygame.init()
 S_SIZE = S_WIDTH, S_HEIGHT = 850, 600
 screen = pygame.display.set_mode(S_SIZE)
 s_clock = pygame.time.Clock()
-S_FPS = 35
+S_FPS = 40
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
 font2 = pygame.font.Font('data/Capsmall.ttf', size=30)
 
 HOST = '127.0.0.1'  # address & port
-DATA_WIND = 8192  # размер пакета данных
+DATA_WIND = Const.data['DATA_WIND']  # размер пакета данных
 # FPS = 0.03  # частота цикла
 # STEP_WAIT = 6
 WIDTH, HEIGHT = 1400, 800
@@ -45,6 +46,20 @@ def random_coord():
         y = 50 * ((STEP * ((randint(50, HEIGHT - 50)) // STEP)) // 50)
     coords.add((x, y))
     return [x, y]
+
+
+all_sprites = pygame.sprite.Group()
+eat_sprites = pygame.sprite.Group()
+
+
+class MySprite(pygame.sprite.Sprite):
+    def __init__(self, pos, radius, color, *args):
+        super().__init__(*args)
+        image = pygame.Surface((radius * 2, radius * 2))
+        pygame.draw.circle(image, color, (radius, radius), radius, 2)
+        self.image = image
+        self.rect = self.image.get_rect()
+        self.rect.move(*pos)
 
 
 class Color:
@@ -69,6 +84,7 @@ class Eat:
         self._color = (50, 255, 50)
         self._life = ''
         self._count = EAT_LIFE
+        self.sprites = [MySprite(self._body[0], self._radius, self._color, eat_sprites)]
 
     def get_data(self):
         return {'body': self._body, 'radius': self._radius, 'color': self._color,
@@ -84,7 +100,16 @@ class Eat:
         g = max(10, g - 1)
         b = max(0, b - 1)
         self._color = (r, g, b)
+        if self._count < 0:
+            eat_sprites.remove(self)
         return self._count < 0
+
+
+
+class MyEat(Eat):
+    def __init__(self, *args):
+        super().__init__(*args)
+
 
 
 class Player:
@@ -344,7 +369,7 @@ class Network:
 
     def send_data(self, sock, data):
         try:
-            sock.sendall(data.encode())  # Hope it won't block
+            sock.sendall(data)  # Hope it won't block
         except ConnectionError:
             print(f"Client suddenly closed, cannot send")
             return False
@@ -356,6 +381,14 @@ class Network:
 if __name__ == "__main__":
     # fps = FPS
     srv_host = Network()
+    texts = []
+    texts.append(font2.render(f"Сервер запущен. Адрес: {HOST} Порт: {Const.data['PORT']}",
+                            True, 'red'))
+    texts.append(font2.render("Последний победитель:",
+                            True, 'green'))
+    texts.append(font2.render('Ботов в игре:', True, 'orange'))
+    texts.append(font2.render('Длина тайма:', True, 'orange'))
+    texts.append(font2.render('Скорость:', True, 'orange'))
 
     # Игровой цикл
     # clock = time.time()
@@ -412,7 +445,7 @@ if __name__ == "__main__":
         # Проверка поедания корма
         for eat in srv_host.eat_data.copy():
             if eat.is_zero():
-                srv_host.eat_data.remove(eat)
+                # srv_host.eat_data.remove(eat)
                 continue
             for addr, player in srv_host.player_data.items():
                 if player.is_in_head(eat.get_head()):
@@ -430,6 +463,8 @@ if __name__ == "__main__":
         data = srv_host.prepare_to_send()
         try:
             data = '#####' + json.dumps(data) + '%%%%%'
+            data = zlib.compress(data.encode())
+
         except Exception as err:
             print('Error prepare to send:', err)
         for sock in srv_host.player_sockets:
@@ -453,29 +488,21 @@ if __name__ == "__main__":
             text = font.render(f"{i + 1:02}: [{addr}] == Life: {player.get_life()}, Len: {player.get_length()}",
                                True, color)
             screen.blit(text, (45, 70 + i * 25))
-
-        text = font2.render(f"Сервер запущен. Адрес: {HOST} Порт: {Const.data['PORT']}",
-                            True, 'red')
-        screen.blit(text, (70, 5))
-        text = font2.render("Последний победитель:",
-                            True, 'green')
-        screen.blit(text, (460, 400))
+        screen.blit(texts[0], (70, 5))
+        screen.blit(texts[1], (460, 400))
         text = font2.render(f"[{srv_host.last_winner[0]}] {srv_host.last_winner[1]}",
                             True, 'green')
         screen.blit(text, (500, 450))
         text = font2.render(f"Timer: {srv_host.game_timer - srv_host.get_time_sec()} сек",
                             True, 'green')
         screen.blit(text, (560, 80))
-        text = font2.render('Ботов в игре:', True, 'orange')
-        screen.blit(text, (500, 200))
+        screen.blit(texts[2], (500, 200))
         text = font2.render(f"- {srv_host.bots_counter:02} +", True, 'orange')
         screen.blit(text, (710, 200))
-        text = font2.render('Длина тайма:', True, 'orange')
-        screen.blit(text, (500, 160))
+        screen.blit(texts[3], (500, 160))
         text = font2.render(f"- {srv_host.game_timer:03} +", True, 'orange')
         screen.blit(text, (710,160))
-        text = font2.render('Скорость:', True, 'orange')
-        screen.blit(text, (500, 240))
+        screen.blit(texts[4], (500, 240))
         text = font2.render(f"- {Const.data['STEP_WAIT']:01} +", True, 'orange')
         screen.blit(text, (710, 240))
 

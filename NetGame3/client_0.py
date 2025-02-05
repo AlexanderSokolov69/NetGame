@@ -5,12 +5,13 @@ import socket
 import sys
 import time
 import json
+import zlib
 from random import choice
 import pygame
 
 from const import Const
 
-DATA_WIND = 8192
+DATA_WIND = Const.data['DATA_WIND']
 SIZE_MUL = 2
 l_text, h_text, step_text = 200, 100, 100
 
@@ -122,7 +123,7 @@ while game:
                     print('Error of send:', err)
 
                 try:
-                    buff += s.recv(DATA_WIND).decode()
+                    buff += zlib.decompress(s.recv(DATA_WIND)).decode()
                     # print(buff)
                 except Exception as err:
                     print('Error of receive:', err)

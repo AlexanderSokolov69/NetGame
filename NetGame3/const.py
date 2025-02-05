@@ -5,3 +5,4 @@ class Const:
     data['GAME_TIMER'] = 120
     data['BOTS_COUNTER'] = 10
     data['STEP_WAIT'] = 4
+    data['DATA_WIND'] = 2048
