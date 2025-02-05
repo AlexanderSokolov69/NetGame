@@ -17,12 +17,12 @@ pygame.init()
 S_SIZE = S_WIDTH, S_HEIGHT = 850, 600
 screen = pygame.display.set_mode(S_SIZE)
 s_clock = pygame.time.Clock()
-S_FPS = 30
+S_FPS = 35
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
 font2 = pygame.font.Font('data/Capsmall.ttf', size=30)
 
-# HOST, PORT = '', 5058  # address & port
+HOST = '127.0.0.1'  # address & port
 DATA_WIND = 8192  # размер пакета данных
 # FPS = 0.03  # частота цикла
 # STEP_WAIT = 6
@@ -239,7 +239,7 @@ class Network:
         self.eat_data = []
         self.main_socket = self.init_socket()
         self.game_time = datetime.datetime.now()
-        self.common_data = {'HOST': Const.data['HOST'], 'PORT': Const.data['PORT'],
+        self.common_data = {'HOST': HOST, 'PORT': Const.data['PORT'],
                             'WINNER': ''}
         self.last_winner = ('', 0)
         self.bots_counter = Const.data['BOTS_COUNTER']
@@ -287,10 +287,10 @@ class Network:
     def init_socket(self):
         main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         main_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        main_socket.bind((Const.data['HOST'], Const.data['PORT']))
+        main_socket.bind((HOST, Const.data['PORT']))
         main_socket.setblocking(False)
         main_socket.listen(1)
-        print('Server started at:', Const.data['HOST'], Const.data['PORT'])
+        print('Server started at:', HOST, Const.data['PORT'])
         return main_socket
 
     def init_game(self):
@@ -454,7 +454,7 @@ if __name__ == "__main__":
                                True, color)
             screen.blit(text, (45, 70 + i * 25))
 
-        text = font2.render(f"Сервер запущен. Адрес: {Const.data['HOST']} Порт: {Const.data['PORT']}",
+        text = font2.render(f"Сервер запущен. Адрес: {HOST} Порт: {Const.data['PORT']}",
                             True, 'red')
         screen.blit(text, (70, 5))
         text = font2.render("Последний победитель:",
