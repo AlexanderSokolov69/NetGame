@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # coding:utf-8
 import os
+import random
 import socket
 import sys
 import time
@@ -14,6 +15,7 @@ from const import Const
 DATA_WIND = Const.data['DATA_WIND']
 SIZE_MUL = 2
 l_text, h_text, step_text = 200, 200, 70
+background = pygame.Color((0, 50, 0))
 
 
 def load_image(name, colorkey=None):
@@ -85,6 +87,8 @@ pygame.init()
 size = width, height = Const.WIDTH, Const.HEIGHT
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
+
+clock_tm = False
 # fps = 4
 color = choice(['white', 'red', 'blue', 'green', 'yellow'])
 rnd = ['left', 'right', 'up', 'down']
@@ -93,6 +97,33 @@ my_addr = '-.-.-.-'
 sound_brake = pygame.mixer.Sound('data/break1.ogg')
 sound_eat = pygame.mixer.Sound('data/eat.ogg')
 sound_ataka = pygame.mixer.Sound('data/brake.ogg')
+
+font_win = pygame.font.Font('data/Capsmall.ttf', 50)
+img_list = [load_image('snake.png'), load_image('snake2.png'), load_image('snake3.png')]
+font = pygame.font.Font('data/Capsmall.ttf', size=20)
+
+
+def prepare_head(body, radius, *args):
+    snake_head = img_list[0]
+    if len(body) == 1:
+        return None, None
+    _img = pygame.transform.scale(snake_head, (radius * 2, radius * 2))
+    dx = body[0][0] - body[1][0]
+    dy = body[0][1] - body[1][1]
+    _shift_x, _shift_y = -(radius // 2), radius
+    if dx < 0:
+        _img = pygame.transform.flip(_img, True, False)
+        _shift_x = radius * 2
+    if dy < 0:
+        _img = pygame.transform.rotate(_img, 90)
+        _shift_y = radius
+        _shift_x = radius * 2
+    elif dy > 0:
+        _img = pygame.transform.rotate(_img, -90)
+        _shift_y = 0
+        _shift_x = -(radius // 2)
+    _rect = _img.get_rect().move(body[0][0] - radius, body[0][1] - radius)
+    return _img, _rect, _shift_x, _shift_y
 
 
 def play_sound(sound: str, addr=''):
@@ -106,10 +137,16 @@ def play_sound(sound: str, addr=''):
         sound_ataka.play()
 
 
+def time_func():
+    global clock_tm
+    clock_tm = False
+
+
 play_sound('eat')
 game = True
 menu = MainMenu()
 convert_error = True
+tm_winner = ''
 while game:
     game = menu.exec(screen)
     try:
@@ -126,6 +163,8 @@ while game:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         flag = False
+                    if event.type == (pygame.USEREVENT + 1):
+                        clock_tm = False
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                         flag = False
                     if event.type == pygame.MOUSEBUTTONDOWN:
@@ -145,7 +184,6 @@ while game:
                     s.send(st.encode())
                 except Exception as err:
                     print('Error of send:', err)
-
                 try:
                     buff += zlib.decompress(s.recv(DATA_WIND)).decode()
                     # print(buff)
@@ -172,6 +210,9 @@ while game:
                     winner = data.get('WINNER', '')
                     if winner:
                         print('Победитель:', winner)
+                        tm_winner = f"Победитель: {winner}"
+                        clock_tm = True
+                        pygame.time.set_timer(pygame.USEREVENT + 1, 4000)
                     tm = data.get('TIMER', 999)
                     pygame.display.set_caption(f"До конца раунда осталось: {tm} секунд...")
                     if tm == 0 or tm == 999:
@@ -179,7 +220,7 @@ while game:
                         end_clr = end_clr[0] - 5, end_clr[1] - 5, end_clr[2] - 5
                     else:
                         end_clr = [255, 255, 255]
-                        screen.fill(pygame.Color((0, 50, 0)))
+                        screen.fill(background)
                     #
                     for addr, player in data.get('players', dict()).items():
                         # print(player)
@@ -200,29 +241,36 @@ while game:
                         txt_pos = [0, 0]
                         contour = 0
                         for i, pos in enumerate(body):
+                            # surf_1 = font.render(f"{hero_length}", False,
+                            #                      'lightblue', background)
+                            surf_0 = font.render(f"{hero_life}", False,
+                                                 'pink', background)
+                            # screen.blit(surf_0, (txt_pos[0], txt_pos[1]))
+                            # screen.blit(surf_1, (txt_pos[0] + 10, txt_pos[1]))
+                            img, rect, *shift = prepare_head(body, player['radius'])
+
                             _radius = radius
                             if i == 0:
                                 txt_pos = pos
                                 div = min(2, len(body))
                                 color = (color_r // div, color_g // div, color_b // div)
                                 radius -= 4
+                                if not img:
+                                    pygame.draw.circle(screen, color, pos,
+                                                       _radius, contour)
                             else:
                                 color = (color_r + dr_color * i,
                                          color_g + dg_color * i,
                                          color_b + db_color * i)
                                 radius = max(3, radius / 1.1)
-                            if figure == 0:
                                 pygame.draw.circle(screen, color, pos, _radius, contour)
                                 contour = 2
-                            elif figure == 1:
-                                rect = pygame.Rect(pos[0] - _radius // 2, pos[1] - _radius // 2,
-                                                   _radius, _radius)
-                                pygame.draw.rect(screen, color, rect)
-                        font = pygame.font.Font(size=25)
-                        surf_1 = font.render(f"{hero_length}", False, 'lightblue')
-                        surf_0 = font.render(f"{hero_life}", False, 'pink')
-                        screen.blit(surf_0, (txt_pos[0], txt_pos[1] - 20))
-                        screen.blit(surf_1, txt_pos)
+                        if img:
+                            screen.blit(img, rect)
+                            screen.blit(surf_0, (rect[0] + shift[0], rect[1] + shift[1]))
+                        if clock_tm:
+                            surf = font_win.render(tm_winner, True, 'white')
+                            screen.blit(surf, (50, 50))
                     pygame.display.flip()
                     # clock.tick(fps)
     except ConnectionResetError:
