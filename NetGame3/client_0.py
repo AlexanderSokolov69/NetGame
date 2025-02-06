@@ -5,14 +5,15 @@ import socket
 import sys
 import time
 import json
+import zlib
 from random import choice
 import pygame
 
 from const import Const
 
-DATA_WIND = 8192
+DATA_WIND = Const.data['DATA_WIND']
 SIZE_MUL = 2
-l_text, h_text, step_text = 200, 100, 100
+l_text, h_text, step_text = 200, 200, 70
 
 
 def load_image(name, colorkey=None):
@@ -32,46 +33,66 @@ def load_image(name, colorkey=None):
     return image
 
 
-class MainMenu():
+class MainMenu:
     def __init__(self):
+        self.sound = pygame.mixer.Sound('data/menu_click.ogg')
         self.image = pygame.transform.scale(load_image('fon.png'), size)
-        font = pygame.font.Font(size=50)
-        self.text_game = [font.render('Начать игру', True, 'darkred'),
-                          font.render('Выход', True, 'darkred')]
+        self.image_cobra = pygame.transform.scale(load_image('cobra.png'), (600, 500))
+        self.font = pygame.font.Font(size=50)
+        self.font_title = pygame.font.Font('data/Capsmall.ttf', size=70)
+        self.title = self.font_title.render('ЗМЕИНЫЕ ГОНКИ', True, 'yellow')
+        self.text_game = [(self.font.render('Начать игру', True, 'darkred'),
+                           self.font.render('Начать игру', True, 'orange')),
+                          (self.font.render('Выход', True, 'darkred'),
+                           self.font.render('Выход', True, 'orange'))]
         self.text_rect = []
-        for surface in self.text_game:
-            rect = surface.get_rect()
-            rect = (rect[0] + l_text, rect[1] + h_text, rect[2], rect[3])
+        for i, surface in enumerate(self.text_game):
+            rect = surface[0].get_rect()
+            rect = rect.move(l_text, h_text + i * step_text)
             self.text_rect.append(rect)
         # print(self.text_rect)
 
     def exec(self, scr: pygame.Surface):
+        mouse_pos = 0, 0
+        click = False
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return False
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    x, y = event.pos
-                    return True
+                    click = True
+                if event.type == pygame.MOUSEMOTION:
+                    mouse_pos = event.pos
             scr.fill('black')
             scr.blit(self.image, (0, 0))
-            for i, surface in enumerate(self.text_game):
-                scr.blit(surface, (l_text, h_text + i * step_text))
+            scr.blit(self.image_cobra, (width - 650, height - 600))
+            lx = width // 2 - self.title.get_rect().width // 2
+            scr.blit(self.title, (lx, 50))
+            for i, (surface, rect) in enumerate(zip(self.text_game, self.text_rect)):
+                if rect.collidepoint(mouse_pos):
+                    k = 1
+                    if click:
+                        self.sound.play()
+                        return i == 0
+                else:
+                    k = 0
+                scr.blit(surface[k], rect)
+            click = False
             pygame.display.flip()
 
 
 pygame.init()
-size = width, height = 1400, 800
+size = width, height = Const.WIDTH, Const.HEIGHT
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
-fps = 4
+# fps = 4
 color = choice(['white', 'red', 'blue', 'green', 'yellow'])
 rnd = ['left', 'right', 'up', 'down']
 buff = ''
 my_addr = '-.-.-.-'
 sound_brake = pygame.mixer.Sound('data/break1.ogg')
 sound_eat = pygame.mixer.Sound('data/eat.ogg')
-sound_ataka = pygame.mixer.Sound('data/ataka.ogg')
+sound_ataka = pygame.mixer.Sound('data/brake.ogg')
 
 
 def play_sound(sound: str, addr=''):
@@ -94,26 +115,30 @@ while game:
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            print(f"Подключение к серверу: {Const.data['HOST']}:{Const.data['PORT']}")
             s.connect((Const.data['HOST'], Const.data['PORT']))
             my_addr = s.getsockname()[0]
             print(' ADDR:', my_addr)
             flag = game
+            end_clr = [255, 255, 255]
             while flag:
                 cmd = {'key': []}
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         flag = False
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                        flag = False
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         cmd['pos'] = event.pos
                 keys = pygame.key.get_pressed()
                 if any(keys):
-                    if keys[pygame.K_LEFT]:
+                    if keys[pygame.K_LEFT] or keys[pygame.K_a]:
                         cmd['key'].append("left")
-                    if keys[pygame.K_RIGHT]:
+                    if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
                         cmd['key'].append("right")
-                    if keys[pygame.K_UP]:
+                    if keys[pygame.K_UP] or keys[pygame.K_w]:
                         cmd['key'].append("up")
-                    if keys[pygame.K_DOWN]:
+                    if keys[pygame.K_DOWN] or keys[pygame.K_s]:
                         cmd['key'].append("down")
                 st = json.dumps(cmd)
                 try:
@@ -122,11 +147,12 @@ while game:
                     print('Error of send:', err)
 
                 try:
-                    buff += s.recv(DATA_WIND).decode()
+                    buff += zlib.decompress(s.recv(DATA_WIND)).decode()
                     # print(buff)
                 except Exception as err:
                     print('Error of receive:', err)
 
+                data = dict()
                 while buff.find('%%%%%') >= 0:
                     pos = buff.find('%%%%%')
                     data = buff[5:pos]
@@ -146,10 +172,16 @@ while game:
                     winner = data.get('WINNER', '')
                     if winner:
                         print('Победитель:', winner)
-                    pygame.display.set_caption(f"До конца раунда осталось: {data['TIMER']} секунд...")
-                    screen.fill(pygame.Color((0, 50, 0)))
+                    tm = data.get('TIMER', 999)
+                    pygame.display.set_caption(f"До конца раунда осталось: {tm} секунд...")
+                    if tm == 0 or tm == 999:
+                        screen.fill(pygame.Color(end_clr))
+                        end_clr = end_clr[0] - 5, end_clr[1] - 5, end_clr[2] - 5
+                    else:
+                        end_clr = [255, 255, 255]
+                        screen.fill(pygame.Color((0, 50, 0)))
                     #
-                    for addr, player in data.get('players', []).items():
+                    for addr, player in data.get('players', dict()).items():
                         # print(player)
                         sound = player.get('sound', '')
                         if sound:
@@ -159,7 +191,8 @@ while game:
                         len_body = len(body)
                         hero_length = player['length']
                         hero_life = player['life']
-                        radius = max(10, player['radius'] + len_body // SIZE_MUL)
+                        radius = player['radius']
+                        # print(radius)
                         color_r, color_g, color_b = player['color']
                         dr_color = (255 - color_r) // len_body
                         dg_color = (255 - color_g) // len_body
@@ -172,12 +205,12 @@ while game:
                                 txt_pos = pos
                                 div = min(2, len(body))
                                 color = (color_r // div, color_g // div, color_b // div)
-                                radius -= player['radius']
+                                radius -= 4
                             else:
                                 color = (color_r + dr_color * i,
                                          color_g + dg_color * i,
                                          color_b + db_color * i)
-                                radius = max(3, radius / 1.05)
+                                radius = max(3, radius / 1.1)
                             if figure == 0:
                                 pygame.draw.circle(screen, color, pos, _radius, contour)
                                 contour = 2
