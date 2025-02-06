@@ -99,6 +99,7 @@ while game:
             my_addr = s.getsockname()[0]
             print(' ADDR:', my_addr)
             flag = game
+            end_clr = [255, 255, 255]
             while flag:
                 cmd = {'key': []}
                 for event in pygame.event.get():
@@ -148,10 +149,16 @@ while game:
                     winner = data.get('WINNER', '')
                     if winner:
                         print('Победитель:', winner)
-                    pygame.display.set_caption(f"До конца раунда осталось: {data['TIMER']} секунд...")
-                    screen.fill(pygame.Color((0, 50, 0)))
+                    tm = data.get('TIMER', 999)
+                    pygame.display.set_caption(f"До конца раунда осталось: {tm} секунд...")
+                    if tm == 0 or tm == 999:
+                        screen.fill(pygame.Color(end_clr))
+                        end_clr = end_clr[0] - 5, end_clr[1] - 5, end_clr[2] - 5
+                    else:
+                        end_clr = [255, 255, 255]
+                        screen.fill(pygame.Color((0, 50, 0)))
                     #
-                    for addr, player in data.get('players', []).items():
+                    for addr, player in data.get('players', dict()).items():
                         # print(player)
                         sound = player.get('sound', '')
                         if sound:

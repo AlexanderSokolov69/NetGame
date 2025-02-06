@@ -1,6 +1,7 @@
 class Const:
+    restart = 1
     data = dict()
-    data['HOST'] = '127.0.0.1'
+    data['HOST'] = '172.16.1.33'
     data['PORT'] = 5858
     data['GAME_TIMER'] = 120
     data['BOTS_COUNTER'] = 10

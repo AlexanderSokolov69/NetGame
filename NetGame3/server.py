@@ -8,6 +8,7 @@ import sys
 import time
 import json
 import zlib
+import sqlite3
 from random import randint
 
 import pygame
@@ -22,8 +23,9 @@ S_FPS = 40
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
 font2 = pygame.font.Font('data/Capsmall.ttf', size=30)
+ten_sound = pygame.mixer.Sound('data/ten_second.ogg')
 
-HOST = '127.0.0.1'  # address & port
+HOST = ''  # address & port
 DATA_WIND = Const.data['DATA_WIND']  # размер пакета данных
 # FPS = 0.03  # частота цикла
 # STEP_WAIT = 6
@@ -37,6 +39,26 @@ SIZE_MUL = 2
 MIN_SAFE_LENGTH = 15
 
 coords = set()
+
+con = sqlite3.connect('data/results.db')
+cur = con.cursor()
+cur.execute("""CREATE TABLE IF NOT EXISTS users 
+                (id INTEGER PRIMARY KEY AUTOINCREMENT, addr VARCHAR(40), wins INTEGER);
+                """)
+if Const.restart:
+    cur.execute("""DELETE FROM users
+                    """)
+    con.commit()
+
+win_stat = dict()
+
+
+def get_sql_stat():
+    global win_stat
+    sql_stat = cur.execute("SELECT * FROM users").fetchall()
+    win_stat = dict()
+    for rec in sql_stat:
+        win_stat[rec[1]] = rec[2]
 
 
 def random_coord():
@@ -242,6 +264,8 @@ class Player(MySprite):
         return delta_x < 0 and delta_y < 0
 
     def breake(self):
+        if self._break > 0:
+            return
         self._pos = [self._pos[0] * -1, self._pos[1] * -1]
         self._break = len(self._body) // 2 + RADIUS
         self._data_out['sound'] = 'break'
@@ -273,6 +297,7 @@ class Player(MySprite):
 
 class Network:
     def __init__(self):
+        self.sound_on = False
         self.clients = []
         self.player_sockets = []
         self.player_data = dict()
@@ -356,6 +381,14 @@ class Network:
         self.common_data['WINNER'] = count
         print('Winner:', count)
         print('new game!')
+        wins = cur.execute(f"SELECT wins FROM users WHERE TRIM(addr) = '{self.last_winner[0]}'").fetchone()
+        print(wins)
+        if wins:
+            cur.execute(f"UPDATE users SET wins = {wins[0] + 1} WHERE TRIM(addr) = '{self.last_winner[0]}'")
+        con.commit()
+        get_sql_stat()
+        print(win_stat)
+        self.sound_on = False
         coords.clear()
         for addr in self.player_data.copy():
             if addr[:3] == 'bot':
@@ -414,6 +447,11 @@ if __name__ == "__main__":
             srv_host.player_sockets.append(new_socket)
             srv_host.player_data[addr] = srv_host.player_data.get(addr, Player())
             print('Connection from:', addr)
+            res = cur.execute(f"SELECT * FROM users WHERE TRIM(addr) = '{addr}' ").fetchone()
+            if not res:
+                cur.execute(f"INSERT INTO users (addr, wins) VALUES ('{addr}', 0)")
+                con.commit()
+            get_sql_stat()
         except BlockingIOError:
             pass
 
@@ -490,7 +528,8 @@ if __name__ == "__main__":
         screen.blit(text, (45, 50))
         for i, (addr, player) in enumerate(srv_host.player_data.items()):
             color = 'red' if addr == srv_host.last_winner[0] else 'yellow' if addr[:3] != 'bot' else 'gray'
-            text = font.render(f"{i + 1:02}: [{addr}] == Life: {player.get_life()}, Len: {player.get_length()}",
+            text = font.render(f"{i + 1:02}: [{addr}] == Life: {player.get_life()}, Len: {player.get_length()}, "
+                               f"WINS: {win_stat.get(addr, ' ')}",
                                True, color)
             screen.blit(text, (45, 70 + i * 25))
         screen.blit(texts[0], (70, 5))
@@ -498,7 +537,11 @@ if __name__ == "__main__":
         text = font2.render(f"[{srv_host.last_winner[0]}] {srv_host.last_winner[1]}",
                             True, 'green')
         screen.blit(text, (500, 450))
-        text = font2.render(f"Timer: {srv_host.game_timer - srv_host.get_time_sec()} сек",
+        game_time = srv_host.game_timer - srv_host.get_time_sec()
+        if game_time <= 10 and not srv_host.sound_on:
+            srv_host.sound_on = True
+            ten_sound.play()
+        text = font2.render(f"Timer: {game_time} сек",
                             True, 'green')
         screen.blit(text, (560, 80))
         screen.blit(texts[2], (500, 200))
