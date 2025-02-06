@@ -13,7 +13,7 @@ from const import Const
 
 DATA_WIND = Const.data['DATA_WIND']
 SIZE_MUL = 2
-l_text, h_text, step_text = 200, 100, 100
+l_text, h_text, step_text = 200, 200, 70
 
 
 def load_image(name, colorkey=None):
@@ -35,34 +35,54 @@ def load_image(name, colorkey=None):
 
 class MainMenu:
     def __init__(self):
+        self.sound = pygame.mixer.Sound('data/menu_click.ogg')
         self.image = pygame.transform.scale(load_image('fon.png'), size)
-        font = pygame.font.Font(size=50)
-        self.text_game = [font.render('Начать игру', True, 'darkred'),
-                          font.render('Выход', True, 'darkred')]
+        self.image_cobra = pygame.transform.scale(load_image('cobra.png'), (600, 500))
+        self.font = pygame.font.Font(size=50)
+        self.font_title = pygame.font.Font('data/Capsmall.ttf', size=70)
+        self.title = self.font_title.render('ЗМЕИНЫЕ ГОНКИ', True, 'yellow')
+        self.text_game = [(self.font.render('Начать игру', True, 'darkred'),
+                           self.font.render('Начать игру', True, 'orange')),
+                          (self.font.render('Выход', True, 'darkred'),
+                           self.font.render('Выход', True, 'orange'))]
         self.text_rect = []
-        for surface in self.text_game:
-            rect = surface.get_rect()
-            rect = (rect[0] + l_text, rect[1] + h_text, rect[2], rect[3])
+        for i, surface in enumerate(self.text_game):
+            rect = surface[0].get_rect()
+            rect = rect.move(l_text, h_text + i * step_text)
             self.text_rect.append(rect)
         # print(self.text_rect)
 
     def exec(self, scr: pygame.Surface):
+        mouse_pos = 0, 0
+        click = False
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return False
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    x, y = event.pos
-                    return True
+                    click = True
+                if event.type == pygame.MOUSEMOTION:
+                    mouse_pos = event.pos
             scr.fill('black')
             scr.blit(self.image, (0, 0))
-            for i, surface in enumerate(self.text_game):
-                scr.blit(surface, (l_text, h_text + i * step_text))
+            scr.blit(self.image_cobra, (width - 650, height - 600))
+            lx = width // 2 - self.title.get_rect().width // 2
+            scr.blit(self.title, (lx, 50))
+            for i, (surface, rect) in enumerate(zip(self.text_game, self.text_rect)):
+                if rect.collidepoint(mouse_pos):
+                    k = 1
+                    if click:
+                        self.sound.play()
+                        return i == 0
+                else:
+                    k = 0
+                scr.blit(surface[k], rect)
+            click = False
             pygame.display.flip()
 
 
 pygame.init()
-size = width, height = 1400, 800
+size = width, height = Const.WIDTH, Const.HEIGHT
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
 # fps = 4
@@ -95,6 +115,7 @@ while game:
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            print(f"Подключение к серверу: {Const.data['HOST']}:{Const.data['PORT']}")
             s.connect((Const.data['HOST'], Const.data['PORT']))
             my_addr = s.getsockname()[0]
             print(' ADDR:', my_addr)
@@ -105,17 +126,19 @@ while game:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         flag = False
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                        flag = False
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         cmd['pos'] = event.pos
                 keys = pygame.key.get_pressed()
                 if any(keys):
-                    if keys[pygame.K_LEFT]:
+                    if keys[pygame.K_LEFT] or keys[pygame.K_a]:
                         cmd['key'].append("left")
-                    if keys[pygame.K_RIGHT]:
+                    if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
                         cmd['key'].append("right")
-                    if keys[pygame.K_UP]:
+                    if keys[pygame.K_UP] or keys[pygame.K_w]:
                         cmd['key'].append("up")
-                    if keys[pygame.K_DOWN]:
+                    if keys[pygame.K_DOWN] or keys[pygame.K_s]:
                         cmd['key'].append("down")
                 st = json.dumps(cmd)
                 try:

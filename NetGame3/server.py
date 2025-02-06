@@ -25,11 +25,11 @@ font = pygame.font.Font('data/Capsmall.ttf', size=20)
 font2 = pygame.font.Font('data/Capsmall.ttf', size=30)
 ten_sound = pygame.mixer.Sound('data/ten_second.ogg')
 
-HOST = ''  # address & port
+HOST = '127.0.0.1'  # address & port
 DATA_WIND = Const.data['DATA_WIND']  # размер пакета данных
 # FPS = 0.03  # частота цикла
 # STEP_WAIT = 6
-WIDTH, HEIGHT = 1400, 800
+WIDTH, HEIGHT = Const.WIDTH, Const.HEIGHT
 STEP = 10
 RADIUS = 8
 COUNT = 10
@@ -46,8 +46,7 @@ cur.execute("""CREATE TABLE IF NOT EXISTS users
                 (id INTEGER PRIMARY KEY AUTOINCREMENT, addr VARCHAR(40), wins INTEGER);
                 """)
 if Const.restart:
-    cur.execute("""DELETE FROM users
-                    """)
+    cur.execute("""DELETE FROM users""")
     con.commit()
 
 win_stat = dict()
@@ -151,7 +150,7 @@ class Player(MySprite):
         self._wait = Const.data['STEP_WAIT']
         self._figure = 0
         self._break = 0
-        self._life = 1
+        self._life = 5
         super().__init__(self._body[0], self._radius, self._color, all_sprites)
 
     def update(self):
@@ -208,7 +207,7 @@ class Player(MySprite):
         self._inc = 0
 
     def add_segment(self, count=1, life=0):
-        self._life += life
+        self.set_life(life)
         segment = self._body[-1]
         for _ in range(count):
             self._body.append(segment)
@@ -216,10 +215,10 @@ class Player(MySprite):
         self.move_point(self._body[0])
 
     def del_segment(self, count=1):
-        for _ in range(count):
+        for _ in range(min(count, len(self._body) - 1)):
             self._body.pop()
-        if self._life > 0:
-            self._life -= 1
+        if self.get_life() > 0:
+            self.set_life(-1)
 
     def set_data(self, data):
         self._data = data
@@ -244,6 +243,11 @@ class Player(MySprite):
     def get_life(self):
         return self._life
 
+    def set_life(self, delta=0):
+        if self._break == 0:
+            self._life = max(0, self._life + delta)
+        return self._life
+
     def is_in_head(self, pos):
         px, py = self._body[0]
         h_size = self.get_length() // SIZE_MUL + RADIUS
@@ -261,7 +265,14 @@ class Player(MySprite):
         size = player.get_length() // SIZE_MUL + self.get_length() // SIZE_MUL + 2 * RADIUS
         delta_x = abs(self._body[0][0] - pos[0]) - size
         delta_y = abs(self._body[0][1] - pos[1]) - size
-        return delta_x < 0 and delta_y < 0
+        if delta_x < 0 and delta_y < 0:
+            if self.get_life() == 0:
+                self.del_segment(len(self._body))
+            else:
+                self.set_life(-1)
+            # player.set_life(-1)
+            return True
+        return False
 
     def breake(self):
         if self._break > 0:
