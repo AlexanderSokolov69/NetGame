@@ -19,7 +19,7 @@ pygame.init()
 S_SIZE = S_WIDTH, S_HEIGHT = 850, 600
 screen = pygame.display.set_mode(S_SIZE)
 s_clock = pygame.time.Clock()
-S_FPS = 18
+S_FPS = 14
 ALIAS = False
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)

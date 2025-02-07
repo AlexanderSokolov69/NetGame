@@ -273,7 +273,7 @@ while game:
                                 color = (color_r // div, color_g // div, color_b // div)
                                 radius -= 4
                                 if my_head and len(body) == 1:
-                                    pygame.draw.circle(screen, 'yellow', pos, _radius + 4)
+                                    pygame.draw.circle(screen, 'red', pos, _radius + 4)
                                     pygame.draw.circle(screen, 'white', pos, _radius)
                                 else:
                                     if not img:
