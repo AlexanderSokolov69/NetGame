@@ -93,7 +93,7 @@ size = width, height = Const.WIDTH, Const.HEIGHT
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
 
-clock_tm = False
+# clock_tm = False
 # fps = 4
 color = choice(['white', 'red', 'blue', 'green', 'yellow'])
 rnd = ['left', 'right', 'up', 'down']
@@ -116,6 +116,7 @@ with open('config.json') as f:
         Const.data['PORT'] = int(s_port)
     if s_host:
         Const.data['HOST'] = s_host
+
 
 def prepare_head(body, radius, *args):
     snake_head = img_list[0]
@@ -151,9 +152,9 @@ def play_sound(sound: str, addr=''):
         sound_ataka.play()
 
 
-def time_func():
-    global clock_tm
-    clock_tm = False
+# def time_func():
+#     global clock_tm
+#     clock_tm = False
 
 
 play_sound('eat')
@@ -177,8 +178,10 @@ while game:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         flag = False
-                    if event.type == (pygame.USEREVENT + 1):
-                        clock_tm = False
+                    if event.type == (pygame.USEREVENT + 1000):
+                        tm_winner = ''
+                        print('event')
+                        break
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                         flag = False
                     if event.type == pygame.MOUSEBUTTONDOWN:
@@ -225,15 +228,14 @@ while game:
                     if winner:
                         print('Победитель:', winner)
                         tm_winner = f"Победитель: {winner}"
-                        clock_tm = True
-                        pygame.time.set_timer(pygame.USEREVENT + 1, 4000)
+                        pygame.time.set_timer(pygame.USEREVENT + 1000, 4000, 1)
                     tm = data.get('TIMER', 999)
                     pygame.display.set_caption(f"До конца раунда осталось: {tm} секунд...")
-                    if tm == 0 or tm == 999:
+                    if tm < 2 or tm == 999:
                         screen.fill(pygame.Color(end_clr))
-                        end_clr = end_clr[0] - 5, end_clr[1] - 5, end_clr[2] - 5
+                        end_clr = end_clr[0] - 6, end_clr[1] - 4, end_clr[2] - 6
                     else:
-                        end_clr = [255, 255, 255]
+                        end_clr = [250, 255, 250]
                         screen.fill(background)
                     #
                     for addr, player in data.get('players', dict()).items():
@@ -247,6 +249,7 @@ while game:
                         hero_length = player['length']
                         hero_life = player['life']
                         radius = player['radius']
+                        my_head = addr == my_addr
                         # print(radius)
                         color_r, color_g, color_b = player['color']
                         dr_color = (255 - color_r) // len_body
@@ -269,9 +272,12 @@ while game:
                                 div = min(2, len(body))
                                 color = (color_r // div, color_g // div, color_b // div)
                                 radius -= 4
-                                if not img:
-                                    pygame.draw.circle(screen, color, pos,
-                                                       _radius, contour)
+                                if my_head and len(body) == 1:
+                                    pygame.draw.circle(screen, 'yellow', pos, _radius + 4)
+                                    pygame.draw.circle(screen, 'white', pos, _radius)
+                                else:
+                                    if not img:
+                                        pygame.draw.circle(screen, color, pos, _radius, contour)
                             else:
                                 color = (color_r + dr_color * i,
                                          color_g + dg_color * i,
@@ -279,12 +285,12 @@ while game:
                                 radius = max(3, radius / 1.1)
                                 pygame.draw.circle(screen, color, pos, _radius, contour)
                                 contour = 2
-                        pygame.draw.circle(screen, color, pos, _radius + 2)
+                        # pygame.draw.circle(screen, color, pos, _radius + 2)
                         if img:
                             screen.blit(img, rect)
                             screen.blit(surf_0, (rect[0] + shift[0], rect[1] + shift[1]))
-                        if clock_tm:
-                            surf = font_win.render(tm_winner, True, 'white')
+                        if tm_winner:
+                            surf = font_win.render(tm_winner, False, 'white')
                             screen.blit(surf, (50, 50))
                     pygame.display.flip()
                     # clock.tick(fps)

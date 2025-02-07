@@ -42,6 +42,7 @@ SIZE_MUL = 2
 MIN_SAFE_LENGTH = 15
 
 coords = set()
+rnd = ['left', 'right', 'up', 'down']
 
 con = sqlite3.connect('data/results.db')
 cur = con.cursor()
@@ -155,6 +156,7 @@ class Player(MySprite):
         self._break = 0
         self._life = 5
         super().__init__(self._body[0], self._radius, self._color, all_sprites)
+        self.set_data({'key': rnd[random.randint(0, 3)]})
 
     def update(self):
         # if not self._data:
@@ -269,8 +271,9 @@ class Player(MySprite):
         delta_x = abs(self._body[0][0] - pos[0]) - size
         delta_y = abs(self._body[0][1] - pos[1]) - size
         if delta_x < 0 and delta_y < 0:
-            if self.get_life() == 0:
-                self.del_segment(len(self._body))
+            if self.get_life() == 0 and self.get_length() > 10:
+                # self.del_segment(len(self._body))
+                self.del_segment(5)
             else:
                 self.set_life(-1)
             # player.set_life(-1)
@@ -468,21 +471,6 @@ if __name__ == "__main__":
         except BlockingIOError:
             pass
 
-        # Получаем данные от игроков
-        addr = ''
-        for sock in srv_host.player_sockets.copy():
-            if 'raddr' not in sock.__repr__():
-                continue
-            addr = sock.getpeername()
-            addr = addr[0]
-            data = srv_host.handle(sock)
-            if data:
-                try:
-                    data = json.loads(data)
-                except json.JSONDecodeError:
-                    data = dict()
-                srv_host.player_data[addr].set_data(data)
-
         # Обработка активности
         # ------------------------------------------------------
         # Игровая механика
@@ -572,6 +560,22 @@ if __name__ == "__main__":
 
         pygame.display.flip()
         s_clock.tick(S_FPS)
+
+        # Получаем данные от игроков
+        addr = ''
+        for sock in srv_host.player_sockets.copy():
+            if 'raddr' not in sock.__repr__():
+                continue
+            addr = sock.getpeername()
+            addr = addr[0]
+            data = srv_host.handle(sock)
+            if data:
+                try:
+                    data = json.loads(data)
+                except json.JSONDecodeError:
+                    data = dict()
+                srv_host.player_data[addr].set_data(data)
+
 
     pygame.quit()
     sys.exit()
