@@ -107,6 +107,15 @@ font_win = pygame.font.Font('data/Capsmall.ttf', 50)
 img_list = [load_image('snake.png')]
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
 
+with open('config.json') as f:
+    data = json.load(f)
+    print(data)
+    s_port = data.get('PORT')
+    s_host = data.get('HOST')
+    if s_port:
+        Const.data['PORT'] = int(s_port)
+    if s_host:
+        Const.data['HOST'] = s_host
 
 def prepare_head(body, radius, *args):
     snake_head = img_list[0]

@@ -19,13 +19,16 @@ pygame.init()
 S_SIZE = S_WIDTH, S_HEIGHT = 850, 600
 screen = pygame.display.set_mode(S_SIZE)
 s_clock = pygame.time.Clock()
-S_FPS = 40
+S_FPS = 18
+ALIAS = False
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
 font2 = pygame.font.Font('data/Capsmall.ttf', size=30)
 ten_sound = pygame.mixer.Sound('data/ten_second.ogg')
 
-HOST = '127.0.0.1'  # address & port
+hostname = socket.gethostname()
+HOST = socket.gethostbyname(hostname)
+packet_size = 0
 DATA_WIND = Const.data['DATA_WIND']  # размер пакета данных
 # FPS = 0.03  # частота цикла
 # STEP_WAIT = 6
@@ -33,7 +36,7 @@ WIDTH, HEIGHT = Const.WIDTH, Const.HEIGHT
 STEP = 10
 RADIUS = 8
 COUNT = 10
-EAT_COUNT = 15
+EAT_COUNT = 40
 EAT_LIFE = 200
 SIZE_MUL = 2
 MIN_SAFE_LENGTH = 15
@@ -357,7 +360,6 @@ class Network:
             self.common_data['WINNER'] = ''
         timer = self.game_timer - self.get_time_sec()
         ret['TIMER'] = timer
-        # print(timer)
         return ret
 
     def init_socket(self):
@@ -393,12 +395,12 @@ class Network:
         print('Winner:', count)
         print('new game!')
         wins = cur.execute(f"SELECT wins FROM users WHERE TRIM(addr) = '{self.last_winner[0]}'").fetchone()
-        print(wins)
+        # print(wins)
         if wins:
             cur.execute(f"UPDATE users SET wins = {wins[0] + 1} WHERE TRIM(addr) = '{self.last_winner[0]}'")
         con.commit()
         get_sql_stat()
-        print(win_stat)
+        # print(win_stat)
         self.sound_on = False
         coords.clear()
         for addr in self.player_data.copy():
@@ -440,7 +442,7 @@ class Network:
 if __name__ == "__main__":
     # fps = FPS
     srv_host = Network()
-    texts = [font2.render(f"Сервер запущен. Адрес: {HOST} Порт: {Const.data['PORT']}",True, 'red'),
+    texts = [font2.render(f"{hostname} IP: {HOST} PORT: {Const.data['PORT']}",True, 'red'),
              font2.render("Последний победитель:",True, 'green'),
              font2.render('Ботов в игре:', True, 'orange'),
              font2.render('Длина тайма:', True, 'orange'),
@@ -518,6 +520,7 @@ if __name__ == "__main__":
         try:
             data = '#####' + json.dumps(data) + '%%%%%'
             data = zlib.compress(data.encode())
+            packet_size = len(data)
 
         except Exception as err:
             print('Error prepare to send:', err)
@@ -535,35 +538,37 @@ if __name__ == "__main__":
 
         # Вывод статистики
         screen.fill(pygame.Color((0, 0, 127)))
-        text = font.render(f"{'=' * 10} PLAYERS {'=' * 10}", True, 'yellow')
+        text = font.render(f"{'=' * 10} PLAYERS {'=' * 10}", ALIAS, 'yellow')
         screen.blit(text, (45, 50))
         for i, (addr, player) in enumerate(srv_host.player_data.items()):
             color = 'red' if addr == srv_host.last_winner[0] else 'yellow' if addr[:3] != 'bot' else 'gray'
             text = font.render(f"{i + 1:02}: [{addr}] == Life: {player.get_life()}, Len: {player.get_length()}, "
                                f"WINS: {win_stat.get(addr, ' ')}",
-                               True, color)
+                               ALIAS, color)
             screen.blit(text, (45, 70 + i * 25))
-        screen.blit(texts[0], (70, 5))
+        screen.blit(texts[0], (S_WIDTH // 2 - texts[0].get_rect().width // 2, 5))
         screen.blit(texts[1], (460, 400))
         text = font2.render(f"[{srv_host.last_winner[0]}] {srv_host.last_winner[1]}",
-                            True, 'green')
+                            ALIAS, 'green')
         screen.blit(text, (500, 450))
         game_time = srv_host.game_timer - srv_host.get_time_sec()
         if game_time <= 10 and not srv_host.sound_on:
             srv_host.sound_on = True
             ten_sound.play()
         text = font2.render(f"Timer: {game_time} сек",
-                            True, 'green')
+                            ALIAS, 'green')
         screen.blit(text, (560, 80))
         screen.blit(texts[2], (500, 200))
-        text = font2.render(f"- {srv_host.bots_counter:02} +", True, 'orange')
+        text = font2.render(f"- {srv_host.bots_counter:02} +", ALIAS, 'orange')
         screen.blit(text, (710, 200))
         screen.blit(texts[3], (500, 160))
-        text = font2.render(f"- {srv_host.game_timer:03} +", True, 'orange')
+        text = font2.render(f"- {srv_host.game_timer:03} +", ALIAS, 'orange')
         screen.blit(text, (710,160))
         screen.blit(texts[4], (500, 240))
-        text = font2.render(f"- {Const.data['STEP_WAIT']:01} +", True, 'orange')
+        text = font2.render(f"- {Const.data['STEP_WAIT']:01} +", ALIAS, 'orange')
         screen.blit(text, (710, 240))
+        text = font2.render(f"Размер пакета: {10 * (packet_size // 10)}", ALIAS, 'red')
+        screen.blit(text, (500, S_HEIGHT - 50))
 
         pygame.display.flip()
         s_clock.tick(S_FPS)
