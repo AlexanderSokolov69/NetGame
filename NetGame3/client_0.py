@@ -37,6 +37,8 @@ def load_image(name, colorkey=None):
 
 class MainMenu:
     def __init__(self):
+        self.hostname = socket.gethostname()
+        self.local_ip = socket.gethostbyname(self.hostname)
         self.sound = pygame.mixer.Sound('data/menu_click.ogg')
         self.image = pygame.transform.scale(load_image('fon.png'), size)
         self.image_cobra = pygame.transform.scale(load_image('cobra.png'), (600, 500))
@@ -80,6 +82,9 @@ class MainMenu:
                     k = 0
                 scr.blit(surface[k], rect)
             click = False
+            text = self.font.render(f"Компьютер: {self.hostname} | IP адрес: {self.local_ip}",
+                                    True, 'gray')
+            scr.blit(text, (width // 2 - text.get_rect().width // 2, height - 50))
             pygame.display.flip()
 
 
@@ -99,7 +104,7 @@ sound_eat = pygame.mixer.Sound('data/eat.ogg')
 sound_ataka = pygame.mixer.Sound('data/brake.ogg')
 
 font_win = pygame.font.Font('data/Capsmall.ttf', 50)
-img_list = [load_image('snake.png'), load_image('snake2.png'), load_image('snake3.png')]
+img_list = [load_image('snake.png')]
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
 
 
@@ -265,6 +270,7 @@ while game:
                                 radius = max(3, radius / 1.1)
                                 pygame.draw.circle(screen, color, pos, _radius, contour)
                                 contour = 2
+                        pygame.draw.circle(screen, color, pos, _radius + 2)
                         if img:
                             screen.blit(img, rect)
                             screen.blit(surf_0, (rect[0] + shift[0], rect[1] + shift[1]))
