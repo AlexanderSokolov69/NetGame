@@ -8,4 +8,4 @@ class Const:
     data['GAME_TIMER'] = 120
     data['BOTS_COUNTER'] = 15
     data['STEP_WAIT'] = 0
-    data['DATA_WIND'] = 2048
+    data['DATA_WIND'] = 1024

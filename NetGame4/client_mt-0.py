@@ -202,7 +202,7 @@ while game:
                 except Exception as err:
                     print('Error of send:', err)
                 try:
-                    buff += zlib.decompress(s.recv(DATA_WIND)).decode()
+                    buff += s.recv(DATA_WIND).decode()
                     # print(buff)
                 except Exception as err:
                     print('Error of receive:', err)
