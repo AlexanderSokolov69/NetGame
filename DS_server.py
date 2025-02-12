@@ -1,6 +1,7 @@
 import socket
 import threading
 
+
 # Конфигурация сервера
 HOST = '127.0.0.1'
 PORT = 5555
@@ -10,6 +11,7 @@ world = [[0 for _ in range(10)] for _ in range(10)]  # 0 - пусто, 1 - бл�
 
 # Список подключённых игроков
 players = {}
+
 
 # Обработка клиента
 def handle_client(conn, addr):
@@ -58,6 +60,7 @@ def start_server():
         thread = threading.Thread(target=handle_client, args=(conn, addr))
         thread.start()
         print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
+
 
 if __name__ == "__main__":
     start_server()
