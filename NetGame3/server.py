@@ -5,7 +5,7 @@ import colorsys
 import random
 import socket
 import sys
-# import time
+import time
 import json
 import zlib
 import sqlite3
@@ -35,11 +35,11 @@ DATA_WIND = Const.data['DATA_WIND']  # размер пакета данных
 WIDTH, HEIGHT = Const.WIDTH, Const.HEIGHT
 STEP = 10
 RADIUS = 8
-COUNT = 2
-EAT_COUNT = 40
+COUNT = 10
+EAT_COUNT = 80
 EAT_LIFE = 200
 SIZE_MUL = 2
-MIN_SAFE_LENGTH = 15
+MIN_SAFE_LENGTH = 30
 
 coords = set()
 rnd = ['left', 'right', 'up', 'down']
@@ -71,6 +71,7 @@ def get_sql_stat():
 #         y = 50 * ((STEP * ((randint(50, HEIGHT - 50)) // STEP)) // 50)
 #     coords.add((x, y))
 #     return [x, y]
+
 def random_coord():
     x = 50 * ((STEP * ((randint(50, WIDTH - 50)) // STEP)) // 50)
     y = 50 * ((STEP * ((randint(50, HEIGHT - 50)) // STEP)) // 50)
@@ -158,7 +159,7 @@ class Player(MySprite):
         self._wait = Const.data['STEP_WAIT']
         self._figure = 0
         self._break = 0
-        self._life = 50
+        self._life = 5
         super().__init__(self._body[0], self._radius, self._color, all_sprites)
         self.set_data({'key': rnd[random.randint(0, 3)]})
 
@@ -171,28 +172,25 @@ class Player(MySprite):
             if pos:
                 x, y = self._body[0]
                 px, py = pos
+                new_step = max(abs(x - px), abs(y - py)) + self._radius
                 if abs(x - px) > abs(y - py):
-                    if x > px:
-                        cmd = 'left'
-                    else:
-                        cmd = 'right'
+                    cmd = 'left' if x > px else 'right'
                 else:
-                    if y > py:
-                        cmd = 'up'
-                    else:
-                        cmd = 'down'
+                    cmd = 'up' if y > py else 'down'
+            else:
+                new_step = self._step
             if cmd:
                 if 'left' in cmd:
-                    self._pos[0] = -self._step
+                    self._pos[0] = -new_step
                     self._pos[1] = 0
                 if 'right' in cmd:
-                    self._pos[0] = self._step
+                    self._pos[0] = new_step
                     self._pos[1] = 0
                 if 'down' in cmd:
-                    self._pos[1] = self._step
+                    self._pos[1] = new_step
                     self._pos[0] = 0
                 if 'up' in cmd:
-                    self._pos[1] = -self._step
+                    self._pos[1] = -new_step
                     self._pos[0] = 0
         else:
             self._break -= 1
@@ -203,13 +201,12 @@ class Player(MySprite):
             self.move()
 
     def move(self):
+        segment = self._body[0].copy()
         for i in range(len(self._body)):
             if i == 0:
-                segment = self._body[i].copy()
                 self._body[i] = [(self._body[i][0] + self._pos[0]) % WIDTH,
                                  (self._body[i][1] + self._pos[1]) % HEIGHT]
                 self.move_point(self._body[0])
-                # print(self.rect, '|', self._pos, '|', self._body[0])
             else:
                 segment, self._body[i] = self._body[i], segment
         self.add_segment(count=self._inc)
@@ -220,7 +217,8 @@ class Player(MySprite):
         segment = self._body[-1]
         for _ in range(count):
             self._body.append(segment)
-        self.image, self.rect = self.new_radius(max(10, RADIUS + len(self._body) // SIZE_MUL), self._color)
+        self.image, self.rect = self.new_radius(max(10, RADIUS + len(self._body) // SIZE_MUL),
+                                                self._color)
         self.move_point(self._body[0])
 
     def del_segment(self, count=1):
@@ -276,19 +274,17 @@ class Player(MySprite):
         delta_y = abs(self._body[0][1] - pos[1]) - size
         if delta_x < 0 and delta_y < 0:
             if self.get_life() == 0 and self.get_length() > 10:
-                # self.del_segment(len(self._body))
                 self.del_segment(5)
             else:
                 self.set_life(-1)
-            # player.set_life(-1)
-            return False
+            return True
         return False
 
     def breake(self):
         if self._break > 0:
             return
         self._pos = [self._pos[0] * -1, self._pos[1] * -1]
-        self._break = len(self._body) // 2 + RADIUS
+        self._break = len(self._body) // 4 + RADIUS
         self._data_out['sound'] = 'break'
 
     def is_body_atak(self, player):
@@ -299,7 +295,6 @@ class Player(MySprite):
         size = player.get_length() // SIZE_MUL + RADIUS
         for i in range(start_segment, self.get_length()):
             sx, sy = self._body[i]
-            # print(sx, sy)
             if abs(x - sx) - size < 0 and abs(y - sy) - size < 0:
                 cut = self.get_length() - i
                 if cut <= player.get_length():
@@ -492,6 +487,7 @@ if __name__ == "__main__":
                     continue
                 if player.is_head_to_head(player2):
                     player.breake()
+                        # player.del_segment(player.get_length())
                     continue
 
         # Проверка поедания корма
@@ -510,8 +506,8 @@ if __name__ == "__main__":
         # Передача данных игрокам
         data = srv_host.prepare_to_send()
         try:
-            data = '#####' + json.dumps(data) + '%%%%%'
-            data = zlib.compress(data.encode())
+            data = json.dumps(data)
+            data = zlib.compress(data.encode('utf-8')) + b'0%%0%0%%0'
             packet_size = len(data)
 
         except Exception as err:
@@ -559,8 +555,8 @@ if __name__ == "__main__":
         screen.blit(texts[4], (500, 240))
         text = font2.render(f"- {Const.data['STEP_WAIT']:01} +", ALIAS, 'orange')
         screen.blit(text, (710, 240))
-        text = font2.render(f"Размер пакета: {10 * (packet_size // 10)}", ALIAS, 'red')
-        screen.blit(text, (500, S_HEIGHT - 50))
+        # text = font2.render(f"Размер пакета: {10 * (packet_size // 10)}", ALIAS, 'red')
+        # screen.blit(text, (500, S_HEIGHT - 50))
 
         pygame.display.flip()
         s_clock.tick(S_FPS)
@@ -579,6 +575,7 @@ if __name__ == "__main__":
                 except json.JSONDecodeError:
                     data = dict()
                 srv_host.player_data[addr].set_data(data)
+
 
     pygame.quit()
     sys.exit()
