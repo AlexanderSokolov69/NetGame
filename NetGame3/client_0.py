@@ -97,7 +97,7 @@ clock = pygame.time.Clock()
 # fps = 4
 color = choice(['white', 'red', 'blue', 'green', 'yellow'])
 rnd = ['left', 'right', 'up', 'down']
-buff = ''
+buff = b''
 my_addr = '-.-.-.-'
 sound_brake = pygame.mixer.Sound('data/break1.ogg')
 sound_eat = pygame.mixer.Sound('data/eat.ogg')
@@ -202,25 +202,26 @@ while game:
                 except Exception as err:
                     print('Error of send:', err)
                 try:
-                    buff += zlib.decompress(s.recv(DATA_WIND)).decode()
+                    buff += s.recv(DATA_WIND)
                     # print(buff)
                 except Exception as err:
                     print('Error of receive:', err)
 
                 data = dict()
-                while buff.find('%%%%%') >= 0:
-                    pos = buff.find('%%%%%')
-                    data = buff[5:pos]
-                    buff = buff[pos + 5:]
-                    convert_error = True
+                while (pos := buff.find(b'0%%0%0%%0')) >= 0:
+                    data = buff[:pos]
+                    buff = buff[pos + 9:]
                     try:
-                        data = json.loads(data)
+                        data = json.loads(zlib.decompress(data).decode('utf-8'))
+                        convert_error = True
                     except json.JSONDecodeError:
                         print('JSON convert error.', data)
                         convert_error = False
                         continue
                     except Exception as err:
                         print('==> ', err)
+                        print(data)
+                        convert_error = False
                         continue
 
                 if convert_error:
