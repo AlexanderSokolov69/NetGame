@@ -16,14 +16,14 @@ import pygame
 from const import Const
 
 pygame.init()
-S_SIZE = S_WIDTH, S_HEIGHT = 850, 600
+S_SIZE = S_WIDTH, S_HEIGHT = 850, 500
 screen = pygame.display.set_mode(S_SIZE)
 s_clock = pygame.time.Clock()
-S_FPS = 20
+S_FPS = 60
 ALIAS = False
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
-font2 = pygame.font.Font('data/Capsmall.ttf', size=30)
+font2 = pygame.font.Font('data/Capsmall.ttf', size=25)
 ten_sound = pygame.mixer.Sound('data/ten_second.ogg')
 
 hostname = socket.gethostname()
@@ -268,6 +268,8 @@ class Player(MySprite):
         return ret
 
     def is_head_to_head(self, player):
+        if self == player:
+            return False
         pos = player.get_head()
         size = player.get_length() // SIZE_MUL + self.get_length() // SIZE_MUL + 2 * RADIUS
         delta_x = abs(self._body[0][0] - pos[0]) - size
@@ -420,7 +422,7 @@ class Network:
     def handle(self, sock: socket.socket) -> any:
         data = None
         try:
-            data = sock.recv(DATA_WIND).decode()  # Should be ready
+            data = zlib.decompress(sock.recv(DATA_WIND)).decode()  # Should be ready
         except ConnectionError:
             print(f"Client suddenly closed while receiving {sock}")
             return None
@@ -447,8 +449,8 @@ if __name__ == "__main__":
     texts = [font2.render(f"{hostname} IP: {HOST} PORT: {Const.data['PORT']}",True, 'red'),
              font2.render("Последний победитель:",True, 'green'),
              font2.render('Ботов в игре:', True, 'orange'),
-             font2.render('Длина тайма:', True, 'orange'),
-             font2.render('Скорость:', True, 'orange')]
+             font2.render('Длина тайма:', True, 'orange')]
+             # font2.render('Скорость:', True, 'orange')]
 
     # Игровой цикл
     new_eat_counter = 0
@@ -476,6 +478,9 @@ if __name__ == "__main__":
         all_sprites.update()
         for addr, player in srv_host.player_data.items():
             for addr2, player2 in srv_host.player_data.items():
+                if player.is_head_to_head(player2):
+                    player.breake()
+                    continue
                 count = player.is_body_atak(player2)
                 if count > 0:
                     if addr2 != addr:
@@ -484,10 +489,6 @@ if __name__ == "__main__":
                     player2.breake()
                     continue
                 if addr2 == addr:
-                    continue
-                if player.is_head_to_head(player2):
-                    player.breake()
-                        # player.del_segment(player.get_length())
                     continue
 
         # Проверка поедания корма
@@ -509,7 +510,6 @@ if __name__ == "__main__":
             data = json.dumps(data)
             data = zlib.compress(data.encode('utf-8')) + b'0%%0%0%%0'
             packet_size = len(data)
-
         except Exception as err:
             print('Error prepare to send:', err)
         for sock in srv_host.player_sockets:
@@ -528,12 +528,21 @@ if __name__ == "__main__":
         screen.fill(pygame.Color((0, 0, 127)))
         text = font.render(f"{'=' * 10} PLAYERS {'=' * 10}", ALIAS, 'yellow')
         screen.blit(text, (45, 50))
-        for i, (addr, player) in enumerate(srv_host.player_data.items()):
-            color = 'red' if addr == srv_host.last_winner[0] else 'yellow' if addr[:3] != 'bot' else 'gray'
-            text = font.render(f"{i + 1:02}: [{addr}] == Life: {player.get_life()}, Len: {player.get_length()}, "
-                               f"WINS: {win_stat.get(addr, ' ')}",
-                               ALIAS, color)
-            screen.blit(text, (45, 70 + i * 25))
+        # for i, (addr, player) in enumerate(srv_host.player_data.items()):
+        #     color = 'red' if addr == srv_host.last_winner[0] else 'yellow' if addr[:3] != 'bot' else 'gray'
+        #     text = font.render(f"{i + 1:02}: [{addr}] == Life: {player.get_life()}, Len: {player.get_length()}, "
+        #                        f"WINS: {win_stat.get(addr, ' ')}",
+        #                        ALIAS, color)
+        #     screen.blit(text, (45, 70 + i * 25))
+        i = 0
+        for (addr, player) in srv_host.player_data.items():
+            if addr[:3] != 'bot':
+                color = 'red' if addr == srv_host.last_winner[0] else 'yellow' if addr[:3] != 'bot' else 'gray'
+                text = font.render(f"{i + 1:02}: [{addr}] == Life: {player.get_life()}, Len: {player.get_length()}, "
+                                   f"WINS: {win_stat.get(addr, ' ')}",
+                                   ALIAS, color)
+                screen.blit(text, (45, 70 + i * 25))
+                i += 1
         screen.blit(texts[0], (S_WIDTH // 2 - texts[0].get_rect().width // 2, 5))
         screen.blit(texts[1], (460, 400))
         text = font2.render(f"[{srv_host.last_winner[0]}] {srv_host.last_winner[1]}",
@@ -552,9 +561,9 @@ if __name__ == "__main__":
         screen.blit(texts[3], (500, 160))
         text = font2.render(f"- {srv_host.game_timer:03} +", ALIAS, 'orange')
         screen.blit(text, (710,160))
-        screen.blit(texts[4], (500, 240))
-        text = font2.render(f"- {Const.data['STEP_WAIT']:01} +", ALIAS, 'orange')
-        screen.blit(text, (710, 240))
+        # screen.blit(texts[4], (500, 240))
+        # text = font2.render(f"- {Const.data['STEP_WAIT']:01} +", ALIAS, 'orange')
+        # screen.blit(text, (710, 240))
         # text = font2.render(f"Размер пакета: {10 * (packet_size // 10)}", ALIAS, 'red')
         # screen.blit(text, (500, S_HEIGHT - 50))
 
@@ -575,7 +584,6 @@ if __name__ == "__main__":
                 except json.JSONDecodeError:
                     data = dict()
                 srv_host.player_data[addr].set_data(data)
-
 
     pygame.quit()
     sys.exit()

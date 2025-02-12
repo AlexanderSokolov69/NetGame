@@ -7,5 +7,5 @@ class Const:
     data['PORT'] = 5885
     data['GAME_TIMER'] = 120
     data['BOTS_COUNTER'] = 6
-    data['STEP_WAIT'] = 0
+    data['STEP_WAIT'] = 2
     data['DATA_WIND'] = 2048
