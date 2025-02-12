@@ -198,7 +198,7 @@ while game:
                         cmd['key'].append("down")
                 st = json.dumps(cmd)
                 try:
-                    s.send(st.encode())
+                    s.sendall(zlib.compress(st.encode()))
                 except Exception as err:
                     print('Error of send:', err)
                 try:
@@ -234,7 +234,7 @@ while game:
                     pygame.display.set_caption(f"До конца раунда осталось: {tm} секунд...")
                     if tm < 2 or tm == 999:
                         screen.fill(pygame.Color(end_clr))
-                        end_clr = end_clr[0] - 6, end_clr[1] - 4, end_clr[2] - 6
+                        end_clr = max(0, end_clr[0] - 6), max(0, end_clr[1] - 4), max(0, end_clr[2] - 6)
                     else:
                         end_clr = [250, 255, 250]
                         screen.fill(background)
