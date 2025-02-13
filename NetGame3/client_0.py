@@ -39,6 +39,7 @@ class MainMenu:
     def __init__(self):
         self.hostname = socket.gethostname()
         self.local_ip = socket.gethostbyname(self.hostname)
+        self.user_name = self.local_ip
         self.sound = pygame.mixer.Sound('data/menu_click.ogg')
         self.image = pygame.transform.scale(load_image('fon.png'), size)
         self.image_cobra = pygame.transform.scale(load_image('cobra.png'), (600, 500))
@@ -56,6 +57,10 @@ class MainMenu:
             self.text_rect.append(rect)
         # print(self.text_rect)
 
+    def check_user_name(self):
+        if not self.user_name:
+            self.user_name = self.local_ip
+
     def exec(self, scr: pygame.Surface):
         mouse_pos = 0, 0
         click = False
@@ -67,6 +72,17 @@ class MainMenu:
                     click = True
                 if event.type == pygame.MOUSEMOTION:
                     mouse_pos = event.pos
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_BACKSPACE:
+                        self.user_name = self.user_name[:-1]
+                    else:
+                        try:
+                            sym = chr(event.key)
+                            if 'a' <= sym <= 'z' or sym in '1234567890-=/.':
+                                self.user_name = f"{self.user_name}{sym}"[:20].capitalize()
+                        except:
+                            pass
+
             scr.fill('black')
             scr.blit(self.image, (0, 0))
             scr.blit(self.image_cobra, (width - 650, height - 600))
@@ -85,8 +101,9 @@ class MainMenu:
             text = self.font.render(f"Компьютер: {self.hostname} | IP адрес: {self.local_ip}",
                                     True, 'gray')
             scr.blit(text, (width // 2 - text.get_rect().width // 2, height - 50))
+            surf_user_name = self.font.render(f"NikName: {self.user_name}", True, 'black')
+            scr.blit(surf_user_name, (610, 150))
             pygame.display.flip()
-
 
 pygame.init()
 size = width, height = Const.WIDTH, Const.HEIGHT
@@ -94,7 +111,7 @@ screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
 
 # clock_tm = False
-# fps = 4
+
 color = choice(['white', 'red', 'blue', 'green', 'yellow'])
 rnd = ['left', 'right', 'up', 'down']
 buff = b''
@@ -152,11 +169,6 @@ def play_sound(sound: str, addr=''):
         sound_ataka.play()
 
 
-# def time_func():
-#     global clock_tm
-#     clock_tm = False
-
-
 play_sound('eat')
 game = True
 menu = MainMenu()
@@ -164,6 +176,7 @@ convert_error = True
 tm_winner = ''
 while game:
     game = menu.exec(screen)
+    menu.check_user_name()
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -174,7 +187,7 @@ while game:
             flag = game
             end_clr = [255, 255, 255]
             while flag:
-                cmd = {'key': []}
+                cmd = {'key': [], 'name': menu.user_name}
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         flag = False
@@ -220,7 +233,6 @@ while game:
                         continue
                     except Exception as err:
                         print('==> ', err)
-                        print(data)
                         convert_error = False
                         continue
 
