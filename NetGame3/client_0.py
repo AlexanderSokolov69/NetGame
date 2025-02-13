@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # coding:utf-8
 import os
-import random
+# import random
 import socket
 import sys
-import time
+# import time
 import json
 import zlib
 from random import choice

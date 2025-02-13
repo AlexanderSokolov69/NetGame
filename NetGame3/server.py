@@ -5,7 +5,7 @@ import colorsys
 import random
 import socket
 import sys
-import time
+# import time
 import json
 import zlib
 import sqlite3
@@ -19,7 +19,7 @@ pygame.init()
 S_SIZE = S_WIDTH, S_HEIGHT = 850, 600
 screen = pygame.display.set_mode(S_SIZE)
 s_clock = pygame.time.Clock()
-S_FPS = 14
+S_FPS = 20
 ALIAS = False
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
@@ -35,7 +35,7 @@ DATA_WIND = Const.data['DATA_WIND']  # размер пакета данных
 WIDTH, HEIGHT = Const.WIDTH, Const.HEIGHT
 STEP = 10
 RADIUS = 8
-COUNT = 10
+COUNT = 2
 EAT_COUNT = 40
 EAT_LIFE = 200
 SIZE_MUL = 2
@@ -64,12 +64,16 @@ def get_sql_stat():
         win_stat[rec[1]] = rec[2]
 
 
+# def random_coord():
+#     x, y = 50, 50
+#     while (x, y) in coords:
+#         x = 50 * ((STEP * ((randint(50, WIDTH - 50)) // STEP)) // 50)
+#         y = 50 * ((STEP * ((randint(50, HEIGHT - 50)) // STEP)) // 50)
+#     coords.add((x, y))
+#     return [x, y]
 def random_coord():
-    x, y = 50, 50
-    while (x, y) in coords:
-        x = 50 * ((STEP * ((randint(50, WIDTH - 50)) // STEP)) // 50)
-        y = 50 * ((STEP * ((randint(50, HEIGHT - 50)) // STEP)) // 50)
-    coords.add((x, y))
+    x = 50 * ((STEP * ((randint(50, WIDTH - 50)) // STEP)) // 50)
+    y = 50 * ((STEP * ((randint(50, HEIGHT - 50)) // STEP)) // 50)
     return [x, y]
 
 
@@ -154,7 +158,7 @@ class Player(MySprite):
         self._wait = Const.data['STEP_WAIT']
         self._figure = 0
         self._break = 0
-        self._life = 5
+        self._life = 50
         super().__init__(self._body[0], self._radius, self._color, all_sprites)
         self.set_data({'key': rnd[random.randint(0, 3)]})
 
@@ -277,7 +281,7 @@ class Player(MySprite):
             else:
                 self.set_life(-1)
             # player.set_life(-1)
-            return True
+            return False
         return False
 
     def breake(self):
@@ -575,7 +579,6 @@ if __name__ == "__main__":
                 except json.JSONDecodeError:
                     data = dict()
                 srv_host.player_data[addr].set_data(data)
-
 
     pygame.quit()
     sys.exit()
