@@ -121,7 +121,8 @@ sound_eat = pygame.mixer.Sound('data/eat.ogg')
 sound_ataka = pygame.mixer.Sound('data/brake.ogg')
 
 font_win = pygame.font.Font('data/Capsmall.ttf', 50)
-img_list = [load_image('snake.png')]
+img_list = [load_image('snake.png'), load_image('snake2.png'),
+            load_image('snake3.png'), load_image('snake4.png')]
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
 
 with open('config.json') as f:
@@ -136,7 +137,7 @@ with open('config.json') as f:
 
 
 def prepare_head(body, radius, *args):
-    snake_head = img_list[0]
+    snake_head = img_list[3]
     if len(body) == 1:
         return None, None
     _img = pygame.transform.scale(snake_head, (radius * 2, radius * 2))
