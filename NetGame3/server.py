@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding:utf-8
+from pprint import pprint
 import datetime
 import colorsys
 import random
@@ -16,10 +17,10 @@ import pygame
 from const import Const
 
 pygame.init()
-S_SIZE = S_WIDTH, S_HEIGHT = 850, 500
+S_SIZE = S_WIDTH, S_HEIGHT = 850, 550
 screen = pygame.display.set_mode(S_SIZE)
 s_clock = pygame.time.Clock()
-S_FPS = 60
+S_FPS = 100
 ALIAS = False
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
@@ -33,13 +34,13 @@ DATA_WIND = Const.data['DATA_WIND']  # размер пакета данных
 # FPS = 0.03  # частота цикла
 # STEP_WAIT = 6
 WIDTH, HEIGHT = Const.WIDTH, Const.HEIGHT
-STEP = 10
-RADIUS = 8
-COUNT = 10
+STEP = Const.STEP
+RADIUS = Const.RADIUS
+COUNT = Const.COUNT
 EAT_COUNT = 80
 EAT_LIFE = 200
-SIZE_MUL = 2
-MIN_SAFE_LENGTH = 30
+SIZE_MUL = Const.SIZE_MUL
+MIN_SAFE_LENGTH = Const.MIN_SAFE_LENGTH
 
 coords = set()
 rnd = ['left', 'right', 'up', 'down']
@@ -56,6 +57,14 @@ if Const.restart:
 win_stat = dict()
 
 
+# class PlayBoard:
+#     def __init__(self):
+#         self.width = WIDTH // STEP
+#         self.height = HEIGHT // STEP
+#         self._board = [[None] * self.width for _ in range(self.height)]
+#         print(len(self._board[0]), len(self._board))
+#
+
 def get_sql_stat():
     global win_stat
     sql_stat = cur.execute("SELECT * FROM users").fetchall()
@@ -64,22 +73,13 @@ def get_sql_stat():
         win_stat[rec[1]] = rec[2]
 
 
-# def random_coord():
-#     x, y = 50, 50
-#     while (x, y) in coords:
-#         x = 50 * ((STEP * ((randint(50, WIDTH - 50)) // STEP)) // 50)
-#         y = 50 * ((STEP * ((randint(50, HEIGHT - 50)) // STEP)) // 50)
-#     coords.add((x, y))
-#     return [x, y]
-
-def random_coord():
-    x = 50 * ((STEP * ((randint(50, WIDTH - 50)) // STEP)) // 50)
-    y = 50 * ((STEP * ((randint(50, HEIGHT - 50)) // STEP)) // 50)
-    return [x, y]
-
-
 all_sprites = pygame.sprite.Group()
 eat_sprites = pygame.sprite.Group()
+
+def random_coord():
+    x = 6 * STEP * (randint(1, WIDTH // STEP // 6 - 1))
+    y = 6 * STEP * (randint(1, HEIGHT // STEP // 6 - 1))
+    return [x, y]
 
 
 class MySprite(pygame.sprite.Sprite):
@@ -99,9 +99,12 @@ class MySprite(pygame.sprite.Sprite):
         self._radius = radius
         return image, image.get_rect()
 
+    def get_radius(self):
+        return self._radius
+
 
 class Color:
-    data = [0.1, 0.95, 0.2, 0,85, 0.3, 0.75, 0.4, 0.65, 0.5,
+    data = [0.1, 0.95, 0.2, 0, 85, 0.3, 0.75, 0.4, 0.65, 0.5,
             0.55, 0.6, 0.45, 0.7, 0.35, 0.8, 0.25, 0.9, 0.15]
     random.shuffle(data)
     count = 0
@@ -120,13 +123,13 @@ class Eat(MySprite):
         self._radius = 8
         self._figure = 0
         self._color = (50, 255, 50)
-        self._life = ''
+        self._life = 0
         super().__init__(self._body[0], self._radius, self._color, eat_sprites)
         self._count = EAT_LIFE
 
     def get_data(self):
         return {'body': self._body, 'radius': self._radius, 'color': self._color,
-                'figure': self._figure, 'length': '', 'life': self._life}
+                'figure': self._figure, 'length': '', 'life': ''}
 
     def get_head(self):
         return self._body[0]
@@ -149,30 +152,27 @@ class Player(MySprite):
             pos = random_coord()
         self._pos = [0, 0]
         self._body = [pos]
+        self._color = Color().color
+        super().__init__(self._body[0], radius, self._color, all_sprites)
         self._inc = 0
-        self._radius = radius
         self._data = dict()
         self._data_out = dict()
         self._step = STEP
-        self._color = Color().color
         self._iter = 0
         self._wait = Const.data['STEP_WAIT']
         self._figure = 0
         self._break = 0
-        self._life = 5
-        super().__init__(self._body[0], self._radius, self._color, all_sprites)
+        self._life = Const.START_LIFE
         self.set_data({'key': rnd[random.randint(0, 3)]})
 
     def update(self):
-        # if not self._data:
-        #     return
         if self._break == 0:
             cmd = self._data.get('key', [])
             pos = self._data.get('pos', [])
             if pos:
                 x, y = self._body[0]
                 px, py = pos
-                new_step = max(abs(x - px), abs(y - py)) + self._radius
+                new_step = STEP * (max(abs(x - px), abs(y - py)) + self._radius) // STEP
                 if abs(x - px) > abs(y - py):
                     cmd = 'left' if x > px else 'right'
                 else:
@@ -217,13 +217,18 @@ class Player(MySprite):
         segment = self._body[-1]
         for _ in range(count):
             self._body.append(segment)
-        self.image, self.rect = self.new_radius(max(10, RADIUS + len(self._body) // SIZE_MUL),
+        self.image, self.rect = self.new_radius(self.calc_radius(),
                                                 self._color)
         self.move_point(self._body[0])
+
+    def calc_radius(self):
+        return max(RADIUS, RADIUS + len(self._body) // SIZE_MUL)
 
     def del_segment(self, count=1):
         for _ in range(min(count, len(self._body) - 1)):
             self._body.pop()
+        self.image, self.rect = self.new_radius(self.calc_radius(),
+                                                self._color)
         if self.get_life() > 0:
             self.set_life(-1)
 
@@ -257,9 +262,7 @@ class Player(MySprite):
 
     def is_in_head(self, pos):
         px, py = self._body[0]
-        h_size = self.get_length() // SIZE_MUL + RADIUS
-        ret = abs(pos[0] - px) < h_size and abs(pos[1] - py) < h_size
-        return ret
+        return abs(pos[0] - px) < self._radius and abs(pos[1] - py) < self._radius
 
     def eat_in_head(self):
         ret = pygame.sprite.spritecollide(self, eat_sprites, True)
@@ -270,11 +273,7 @@ class Player(MySprite):
     def is_head_to_head(self, player):
         if self == player:
             return False
-        pos = player.get_head()
-        size = player.get_length() // SIZE_MUL + self.get_length() // SIZE_MUL + 2 * RADIUS
-        delta_x = abs(self._body[0][0] - pos[0]) - size
-        delta_y = abs(self._body[0][1] - pos[1]) - size
-        if delta_x < 0 and delta_y < 0:
+        if self.rect.colliderect(player.rect):
             if self.get_life() == 0 and self.get_length() > 10:
                 self.del_segment(5)
             else:
@@ -286,18 +285,16 @@ class Player(MySprite):
         if self._break > 0:
             return
         self._pos = [self._pos[0] * -1, self._pos[1] * -1]
-        self._break = len(self._body) // 4 + RADIUS
+        self._break = len(self._body) // 3 + RADIUS
         self._data_out['sound'] = 'break'
 
     def is_body_atak(self, player):
-        start_segment = 1
+        start_segment = 4
         if player == self:
             start_segment = MIN_SAFE_LENGTH
-        x, y = player.get_head()
-        size = player.get_length() // SIZE_MUL + RADIUS
+        head_rect: pygame.Rect = player.rect
         for i in range(start_segment, self.get_length()):
-            sx, sy = self._body[i]
-            if abs(x - sx) - size < 0 and abs(y - sy) - size < 0:
+            if head_rect.collidepoint(*self._body[i]):
                 cut = self.get_length() - i
                 if cut <= player.get_length():
                     self.del_segment(cut)
@@ -328,15 +325,15 @@ class Network:
         self.bots_counter = Const.data['BOTS_COUNTER']
         self.game_timer = Const.data['GAME_TIMER']
         # self.step_wait = Const.data['STEP_WAIT']
-        self.rect_area = {'game_timer': [pygame.Rect(710, 170, 15, 15), pygame.Rect(790, 170, 20, 15)],
-                          'bots_counter': [pygame.Rect(710, 210, 15, 15), pygame.Rect(767, 210, 20, 15)],
-                          'step_wait': [pygame.Rect(710, 250, 15, 15), pygame.Rect(760, 250, 20, 15)]
+        self.rect_area = {'game_timer': [pygame.Rect(710, 170, 15, 15), pygame.Rect(770, 170, 20, 15)],
+                          'bots_counter': [pygame.Rect(710, 210, 15, 15), pygame.Rect(760, 210, 20, 15)],
+                          'step_wait': [pygame.Rect(710, 250, 15, 15), pygame.Rect(750, 250, 20, 15)]
                           }
         self.reset_game()
 
     def check_click(self, pos):
         def check_area(pos: list[int, int], rect: pygame.Rect):
-            return rect.x <= pos[0] <= rect.x +rect.w and rect.y <= pos[1] <= rect.y + rect.h
+            return rect.collidepoint(pos)
 
         if check_area(pos, self.rect_area['bots_counter'][0]):
             self.bots_counter = max(0, self.bots_counter - 1)
@@ -412,7 +409,8 @@ class Network:
                 self.player_data.pop(addr)
         for i in range(self.bots_counter):
             player = Player()
-            player.set_data({'key': 'left'})
+            if not Const.data['CHAOS']:
+                player.set_data({'key': 'left'})
             player.add_segment(12)
             self.player_data[f"bot{i:03}"] = player
         for addr in self.player_data.keys():
@@ -446,14 +444,15 @@ class Network:
 if __name__ == "__main__":
     # fps = FPS
     srv_host = Network()
-    texts = [font2.render(f"{hostname} IP: {HOST} PORT: {Const.data['PORT']}",True, 'red'),
-             font2.render("Последний победитель:",True, 'green'),
+    texts = [font2.render(f"{hostname} IP: {HOST} PORT: {Const.data['PORT']}", True, 'red'),
+             font2.render("Последний победитель:", True, 'green'),
              font2.render('Ботов в игре:', True, 'orange'),
-             font2.render('Длина тайма:', True, 'orange')]
-             # font2.render('Скорость:', True, 'orange')]
+             font2.render('Длина тайма:', True, 'orange'),
+             font2.render('Скорость:', True, 'orange')]
 
     # Игровой цикл
     new_eat_counter = 0
+    test_time = 0
     cicle = True
     while cicle:
         srv_host.init_game()
@@ -480,14 +479,14 @@ if __name__ == "__main__":
             for addr2, player2 in srv_host.player_data.items():
                 if player.is_head_to_head(player2):
                     player.breake()
-                    continue
+                    break
                 count = player.is_body_atak(player2)
                 if count > 0:
                     if addr2 != addr:
                         player2.add_segment(count, 1)
                 elif count < 0:
                     player2.breake()
-                    continue
+                    break
                 if addr2 == addr:
                     continue
 
@@ -560,15 +559,18 @@ if __name__ == "__main__":
         screen.blit(text, (710, 200))
         screen.blit(texts[3], (500, 160))
         text = font2.render(f"- {srv_host.game_timer:03} +", ALIAS, 'orange')
-        screen.blit(text, (710,160))
-        # screen.blit(texts[4], (500, 240))
-        # text = font2.render(f"- {Const.data['STEP_WAIT']:01} +", ALIAS, 'orange')
-        # screen.blit(text, (710, 240))
+        screen.blit(text, (710, 160))
+        screen.blit(texts[4], (500, 240))
+        text = font2.render(f"- {Const.data['STEP_WAIT']:01} +", ALIAS, 'orange')
+        screen.blit(text, (710, 240))
         # text = font2.render(f"Размер пакета: {10 * (packet_size // 10)}", ALIAS, 'red')
+        # text = font2.render(f"Размер пакета: {10 * (test_time // 10000000)}", ALIAS, 'red')
         # screen.blit(text, (500, S_HEIGHT - 50))
 
         pygame.display.flip()
+        # test_time = time.time_ns()
         s_clock.tick(S_FPS)
+        # test_time = time.time_ns() - test_time
 
         # Получаем данные от игроков
         addr = ''
