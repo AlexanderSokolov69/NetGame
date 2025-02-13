@@ -76,6 +76,7 @@ def get_sql_stat():
 all_sprites = pygame.sprite.Group()
 eat_sprites = pygame.sprite.Group()
 
+
 def random_coord():
     x = 6 * STEP * (randint(1, WIDTH // STEP // 6 - 1))
     y = 6 * STEP * (randint(1, HEIGHT // STEP // 6 - 1))
@@ -163,6 +164,7 @@ class Player(MySprite):
         self._figure = 0
         self._break = 0
         self._life = Const.START_LIFE
+        self.user_name = ''
         self.set_data({'key': rnd[random.randint(0, 3)]})
 
     def update(self):
@@ -234,6 +236,7 @@ class Player(MySprite):
 
     def set_data(self, data):
         self._data = data
+        self.user_name = self._data.get('name', '')
 
     def get_data(self):
         self._data_out['body'] = self._body
@@ -388,7 +391,7 @@ class Network:
         win_addr, win_len = '', 0
         for addr, player in self.player_data.items():
             if player.get_length() > win_len:
-                win_addr = addr
+                win_addr = f"{player.user_name} ({addr})"
                 win_len = player.get_length()
                 count = f"{win_addr}. Длина: {win_len}."
                 self.last_winner = win_addr, win_len
@@ -537,7 +540,7 @@ if __name__ == "__main__":
         for (addr, player) in srv_host.player_data.items():
             if addr[:3] != 'bot':
                 color = 'red' if addr == srv_host.last_winner[0] else 'yellow' if addr[:3] != 'bot' else 'gray'
-                text = font.render(f"{i + 1:02}: [{addr}] == Life: {player.get_life()}, Len: {player.get_length()}, "
+                text = font.render(f"{i + 1:02}: [{player.user_name}] == LF: {player.get_life()}, LN: {player.get_length()}, "
                                    f"WINS: {win_stat.get(addr, ' ')}",
                                    ALIAS, color)
                 screen.blit(text, (45, 70 + i * 25))
