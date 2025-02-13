@@ -174,7 +174,8 @@ class Player(MySprite):
             if pos:
                 x, y = self._body[0]
                 px, py = pos
-                new_step = STEP * (max(abs(x - px), abs(y - py)) + self._radius) // STEP
+                new_step = self._step
+                # STEP * (max(abs(x - px), abs(y - py)) + self._radius) // STEP
                 if abs(x - px) > abs(y - py):
                     cmd = 'left' if x > px else 'right'
                 else:
@@ -264,16 +265,23 @@ class Player(MySprite):
         return self._life
 
     def is_in_head(self, pos):
+        if self._break:
+            return False
         px, py = self._body[0]
-        return abs(pos[0] - px) < self._radius and abs(pos[1] - py) < self._radius
+        return self.rect.collidepoint(pos)
+        # return abs(pos[0] - px) < self._radius and abs(pos[1] - py) < self._radius
 
     def eat_in_head(self):
+        if self._break:
+            return False
         ret = pygame.sprite.spritecollide(self, eat_sprites, True)
         if ret:
             self._data_out['sound'] = 'eat'
         return ret
 
     def is_head_to_head(self, player):
+        if self._break:
+            return False
         if self == player:
             return False
         if self.rect.colliderect(player.rect):
@@ -292,6 +300,8 @@ class Player(MySprite):
         self._data_out['sound'] = 'break'
 
     def is_body_atak(self, player):
+        if self._break:
+            return False
         start_segment = 4
         if player == self:
             start_segment = MIN_SAFE_LENGTH
