@@ -16,11 +16,41 @@ import pygame
 
 from const import Const
 
+
+def load_config():
+    global S_FPS, EAT_COUNT, EAT_LIFE
+    with open('srv_config.json') as f:
+        data = json.load(f)
+        print(data)
+        s_port = data.get('PORT')
+        s_host = data.get('HOST')
+        if s_port:
+            Const.data['PORT'] = int(s_port)
+        if s_host:
+            Const.data['HOST'] = s_host
+        Const.data['GAME_TIMER'] = int(data.get('GAME_TIMER', Const.data['GAME_TIMER']))
+        Const.data['BOTS_COUNTER'] = int(data.get('BOTS_COUNTER', Const.data['BOTS_COUNTER']))
+        Const.data['STEP_WAIT'] = int(data.get('STEP_WAIT', Const.data['STEP_WAIT']))
+        Const.data['DATA_WIND'] = int(data.get('DATA_WIND', Const.data['DATA_WIND']))
+        Const.data['CHAOS'] = int(data.get('CHAOS', Const.data['CHAOS']))
+        S_FPS = int(data.get('S_FPS', 100))
+        EAT_COUNT = int(data.get('EAT_COUNT', 10))
+        EAT_LIFE = int(data.get('EAT_LIFE', 300))
+        Const.MIN_SAFE_LENGTH = int(data.get('MIN_SAFE_LENGTH', 30))
+        Const.START_LIFE = int(data.get('START_LIFE', 10))
+        Const.WIDTH = int(data.get('WIDTH', 3000))
+        Const.HEIGHT = int(data.get('HEIGHT', 3000))
+
+
 pygame.init()
 S_SIZE = S_WIDTH, S_HEIGHT = 850, 550
 screen = pygame.display.set_mode(S_SIZE)
 s_clock = pygame.time.Clock()
-S_FPS = 100
+S_FPS = 0
+EAT_COUNT = 0
+EAT_LIFE = 0
+
+load_config()
 ALIAS = False
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
@@ -37,8 +67,6 @@ WIDTH, HEIGHT = Const.WIDTH, Const.HEIGHT
 STEP = Const.STEP
 RADIUS = Const.RADIUS
 COUNT = Const.COUNT
-EAT_COUNT = 1000
-EAT_LIFE = 300
 SIZE_MUL = Const.SIZE_MUL
 MIN_SAFE_LENGTH = Const.MIN_SAFE_LENGTH
 
