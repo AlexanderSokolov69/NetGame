@@ -3,13 +3,14 @@
   "PORT": "5885",
   "GAME_TIMER": 120,
   "BOTS_COUNTER": 30,
+  "STEP_WAIT": 3,
   "DATA_WIND": 8192,
-  "CHAOS": 1,
-  "S_FPS": 20,
-  "EAT_COUNT": 100,
+  "CHAOS": 0,
+  "S_FPS": 100,
+  "EAT_COUNT": 5000,
   "EAT_LIFE": 400,
   "MIN_SAFE_LENGTH": 30,
   "START_LIFE": 5,
-  "WIDTH": 4000,
-  "HEIGHT": 4000
+  "WIDTH": 3000,
+  "HEIGHT": 3000
 }
