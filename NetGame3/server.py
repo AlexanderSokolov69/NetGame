@@ -166,6 +166,7 @@ class Player(MySprite):
         self._life = Const.START_LIFE
         self.user_name = ''
         self.set_data({'key': rnd[random.randint(0, 3)]})
+        self.super_speed = 1
 
     def is_break(self):
         return self._break > 0
@@ -177,9 +178,10 @@ class Player(MySprite):
         old_pos, self._pos = self._pos, pos
         return old_pos
 
-
     def update(self):
         if self._break == 0:
+            self._pos[0] = 0 if self._pos[0] == 0 else self._step * (self._pos[0] // abs(self._pos[0]))
+            self._pos[1] = 0 if self._pos[1] == 0 else self._step * (self._pos[1] // abs(self._pos[1]))
             cmd = self._data.get('key', [])
             pos = self._data.get('pos', [])
             if pos:
@@ -206,9 +208,11 @@ class Player(MySprite):
                 if 'up' in cmd:
                     self._pos[1] = -new_step
                     self._pos[0] = 0
-                if 'stop' in cmd:
-                    self._pos[1] = 0
-                    self._pos[0] = 0
+                if 'stop' in cmd and self.super_speed == 1:
+                    self._pos[1] *= 2
+                    self._pos[0] *= 2
+                    self.super_speed = 0
+                    self.breake()
         else:
             self._break -= 1
         self._data['key'] = None
@@ -350,6 +354,7 @@ class Network:
 
     def __init__(self):
         self.sound_on = False
+        self.super_speed = 1
         self.clients = []
         self.player_sockets = []
         self.player_data = dict()
@@ -423,6 +428,7 @@ class Network:
 
     def reset_game(self):
         Network.num = 0
+        self.super_speed = 1
         count = ''
         self.game_time = datetime.datetime.now()
         win_addr, win_len = '', 0
@@ -492,6 +498,7 @@ if __name__ == "__main__":
 
     # Игровой цикл
     pygame.time.set_timer(pygame.USEREVENT + 1100, 1000, 0)
+    pygame.time.set_timer(pygame.USEREVENT + 1200, 3000, 0)
     srv_host.init_game()
     new_eat_counter = 0
     # test_time = 0
@@ -566,6 +573,8 @@ if __name__ == "__main__":
             if event.type == pygame.USEREVENT + 1100:
                 rnd_num = randint(0, srv_host.bots_counter - 1)
                 srv_host.player_data[f"bot{rnd_num:03}"].set_data({'key': rnd[random.randint(0, 3)]})
+            if event.type == pygame.USEREVENT + 1200:
+                srv_host.super_speed = 1
 
         # Вывод статистики
         screen.fill(pygame.Color((0, 0, 127)))
@@ -579,6 +588,8 @@ if __name__ == "__main__":
         #     screen.blit(text, (45, 70 + i * 25))
         i = 0
         for (addr, player) in srv_host.player_data.items():
+            if srv_host.super_speed == 1:
+                player.super_speed = 1
             if addr[:3] != 'bot':
                 color = 'red' if addr == srv_host.last_winner[0] else 'yellow' if addr[:3] != 'bot' else 'gray'
                 text = font.render(f"{i + 1:02}: [{player.user_name}] == LF: {player.get_life()}, LN: {player.get_length()}, "
@@ -586,6 +597,7 @@ if __name__ == "__main__":
                                    ALIAS, color)
                 screen.blit(text, (45, 70 + i * 25))
                 i += 1
+        srv_host.super_speed = 0
         screen.blit(texts[0], (S_WIDTH // 2 - texts[0].get_rect().width // 2, 5))
         screen.blit(texts[1], (460, 400))
         text = font2.render(f"[{srv_host.last_winner[0]}] {srv_host.last_winner[1]}",
