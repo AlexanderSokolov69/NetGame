@@ -20,7 +20,7 @@ pygame.init()
 S_SIZE = S_WIDTH, S_HEIGHT = 850, 550
 screen = pygame.display.set_mode(S_SIZE)
 s_clock = pygame.time.Clock()
-S_FPS = 100
+S_FPS = 80
 ALIAS = False
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
@@ -37,8 +37,8 @@ WIDTH, HEIGHT = Const.WIDTH, Const.HEIGHT
 STEP = Const.STEP
 RADIUS = Const.RADIUS
 COUNT = Const.COUNT
-EAT_COUNT = 80
-EAT_LIFE = 200
+EAT_COUNT = 1000
+EAT_LIFE = 300
 SIZE_MUL = Const.SIZE_MUL
 MIN_SAFE_LENGTH = Const.MIN_SAFE_LENGTH
 
@@ -167,6 +167,17 @@ class Player(MySprite):
         self.user_name = ''
         self.set_data({'key': rnd[random.randint(0, 3)]})
 
+    def is_break(self):
+        return self._break > 0
+
+    def get_pos(self):
+        return self._pos
+
+    def set_pos(self, pos):
+        old_pos, self._pos = self._pos, pos
+        return old_pos
+
+
     def update(self):
         if self._break == 0:
             cmd = self._data.get('key', [])
@@ -194,6 +205,9 @@ class Player(MySprite):
                     self._pos[0] = 0
                 if 'up' in cmd:
                     self._pos[1] = -new_step
+                    self._pos[0] = 0
+                if 'stop' in cmd:
+                    self._pos[1] = 0
                     self._pos[0] = 0
         else:
             self._break -= 1
@@ -280,11 +294,14 @@ class Player(MySprite):
         return ret
 
     def is_head_to_head(self, player):
-        if self._break:
+        if self.is_break() or player.is_break():
             return False
         if self == player:
             return False
         if self.rect.colliderect(player.rect):
+            player.breake()
+            self.breake()
+            self._pos = player.set_pos(self._pos)
             if self.get_life() == 0 and self.get_length() > 10:
                 self.del_segment(5)
             else:
@@ -292,11 +309,16 @@ class Player(MySprite):
             return True
         return False
 
-    def breake(self):
-        if self._break > 0:
+    def reverse(self):
+        if self.is_break():
             return
         self._pos = [self._pos[0] * -1, self._pos[1] * -1]
-        self._break = len(self._body) // 3 + RADIUS
+        self.breake()
+
+    def breake(self):
+        # if self._break > 0:
+        #     return
+        self._break = max([40, len(self._body) // 2 + RADIUS])
         self._data_out['sound'] = 'break'
 
     def is_body_atak(self, player):
@@ -324,6 +346,8 @@ class Player(MySprite):
 
 
 class Network:
+    num = 0
+
     def __init__(self):
         self.sound_on = False
         self.clients = []
@@ -351,7 +375,7 @@ class Network:
         if check_area(pos, self.rect_area['bots_counter'][0]):
             self.bots_counter = max(0, self.bots_counter - 1)
         elif check_area(pos, self.rect_area['bots_counter'][1]):
-            self.bots_counter = min(20, self.bots_counter + 1)
+            self.bots_counter = min(50, self.bots_counter + 1)
         elif check_area(pos, self.rect_area['game_timer'][0]):
             self.game_timer = max(10, self.game_timer - 10)
         elif check_area(pos, self.rect_area['game_timer'][1]):
@@ -374,6 +398,8 @@ class Network:
             self.common_data['WINNER'] = ''
         timer = self.game_timer - self.get_time_sec()
         ret['TIMER'] = timer
+        ret['NUMBER'] = Network.num
+        Network.num += 1
         return ret
 
     def init_socket(self):
@@ -396,6 +422,7 @@ class Network:
                 self.game_time.second + self.game_time.minute * 60)
 
     def reset_game(self):
+        Network.num = 0
         count = ''
         self.game_time = datetime.datetime.now()
         win_addr, win_len = '', 0
@@ -464,8 +491,10 @@ if __name__ == "__main__":
              font2.render('Скорость:', True, 'orange')]
 
     # Игровой цикл
+    pygame.time.set_timer(pygame.USEREVENT + 1100, 1000, 0)
+    srv_host.init_game()
     new_eat_counter = 0
-    test_time = 0
+    # test_time = 0
     cicle = True
     while cicle:
         srv_host.init_game()
@@ -491,14 +520,13 @@ if __name__ == "__main__":
         for addr, player in srv_host.player_data.items():
             for addr2, player2 in srv_host.player_data.items():
                 if player.is_head_to_head(player2):
-                    player.breake()
                     break
                 count = player.is_body_atak(player2)
                 if count > 0:
                     if addr2 != addr:
                         player2.add_segment(count, 1)
                 elif count < 0:
-                    player2.breake()
+                    player2.reverse()
                     break
                 if addr2 == addr:
                     continue
@@ -535,6 +563,9 @@ if __name__ == "__main__":
                 srv_host.check_click(event.pos)
             # if event.type == pygame.MOUSEMOTION:
             #     pygame.display.set_caption(f"{event.pos}")
+            if event.type == pygame.USEREVENT + 1100:
+                rnd_num = randint(0, srv_host.bots_counter - 1)
+                srv_host.player_data[f"bot{rnd_num:03}"].set_data({'key': rnd[random.randint(0, 3)]})
 
         # Вывод статистики
         screen.fill(pygame.Color((0, 0, 127)))
@@ -576,9 +607,9 @@ if __name__ == "__main__":
         screen.blit(texts[4], (500, 240))
         text = font2.render(f"- {Const.data['STEP_WAIT']:01} +", ALIAS, 'orange')
         screen.blit(text, (710, 240))
-        # text = font2.render(f"Размер пакета: {10 * (packet_size // 10)}", ALIAS, 'red')
+        text = font2.render(f"Размер пакета: {10 * (packet_size // 10)}", ALIAS, 'red')
         # text = font2.render(f"Размер пакета: {10 * (test_time // 10000000)}", ALIAS, 'red')
-        # screen.blit(text, (500, S_HEIGHT - 50))
+        screen.blit(text, (500, S_HEIGHT - 50))
 
         pygame.display.flip()
         # test_time = time.time_ns()

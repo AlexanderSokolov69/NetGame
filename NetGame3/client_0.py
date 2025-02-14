@@ -17,6 +17,11 @@ SIZE_MUL = 2
 l_text, h_text, step_text = 200, 200, 70
 background = pygame.Color((0, 50, 0))
 
+pygame.init()
+size = width, height = 1400, 900
+screen = pygame.display.set_mode(size)
+clock = pygame.time.Clock()
+
 
 def load_image(name, colorkey=None):
     fullname = os.path.join('data', name)
@@ -105,12 +110,43 @@ class MainMenu:
             scr.blit(surf_user_name, (610, 150))
             pygame.display.flip()
 
-pygame.init()
-size = width, height = Const.WIDTH, Const.HEIGHT
-screen = pygame.display.set_mode(size)
-clock = pygame.time.Clock()
 
-# clock_tm = False
+class Camera:
+    def __init__(self, x, y):
+        self._x = x
+        self._y = y
+        self._center_x = width // 2
+        self._center_y = height // 2
+        self._queue = []
+        self.q_len = 30
+        self.number = 0
+
+    def move(self, new_x, new_y, number=0):
+        if number > self.number or number == 0:
+            self.number = number
+            self._x, self._y = new_x, new_y
+            # self._queue.append((new_x, new_y))
+            # if len(self._queue) < self.q_len:
+            #     self._x, self._y = self._queue[0]
+            # else:
+            #     self._x, self._y = self._queue.pop(0)
+
+    def pos(self):
+        return self._x, self._y
+
+    def shift(self, pos):
+        x = pos[0] - self._x + self._center_x
+        if x > width:
+            x -= Const.WIDTH
+        elif x < 0:
+            x += Const.WIDTH
+        y = pos[1] - self._y + self._center_y
+        if y > height:
+            y -= Const.HEIGHT
+        elif y < 0:
+            y += Const.HEIGHT
+        return x, y
+
 
 color = choice(['white', 'red', 'blue', 'green', 'yellow'])
 rnd = ['left', 'right', 'up', 'down']
@@ -136,27 +172,72 @@ with open('config.json') as f:
         Const.data['HOST'] = s_host
 
 
-def prepare_head(body, radius, *args):
-    snake_head = img_list[3]
-    if len(body) == 1:
-        return None, None
-    _img = pygame.transform.scale(snake_head, (radius * 2, radius * 2))
-    dx = body[0][0] - body[1][0]
-    dy = body[0][1] - body[1][1]
-    _shift_x, _shift_y = -(radius // 2), radius
-    if dx < 0:
-        _img = pygame.transform.flip(_img, True, False)
-        _shift_x = radius * 2
-    if dy < 0:
-        _img = pygame.transform.rotate(_img, 90)
-        _shift_y = radius
-        _shift_x = radius * 2
-    elif dy > 0:
-        _img = pygame.transform.rotate(_img, -90)
-        _shift_y = 0
-        _shift_x = -(radius // 2)
-    _rect = _img.get_rect().move(body[0][0] - radius, body[0][1] - radius)
-    return _img, _rect, _shift_x, _shift_y
+class SnakeHead:
+    def __init__(self):
+        self._history = dict()
+        snake_head = img_list[3]
+        snake_head2 = pygame.transform.flip(snake_head, True, False)
+        self._img = {'right': snake_head,
+                     'left': snake_head2,
+                     'down': pygame.transform.rotate(snake_head2, -90),
+                     'up': pygame.transform.rotate(snake_head2, 90)}
+
+    def get_head(self, body, pos, radius, addr):
+        if len(body) == 1:
+            return None, None
+        dx = body[0][0] - body[1][0]
+        dy = body[0][1] - body[1][1]
+        if dx > 0:
+            _state = 'right'
+        elif dx < 0:
+            _state = 'left'
+        elif dy > 0:
+            _state = 'up'
+        else:
+            _state = 'down'
+        a_state, a_count = self._history.get(addr, ['right', 0])
+        if a_state == _state:
+            self._history[addr] = (a_state, 0)
+        else:
+            self._history[addr] = (a_state, a_count + 1)
+        if a_count + 1 > 2:
+            self._history[addr] = (_state, 0)
+            a_state = _state
+        _shift_x, _shift_y = -(radius // 2), radius
+        if a_state == 'left':
+            _shift_x = radius * 2
+        elif a_state == 'down':
+            _shift_y = radius
+            _shift_x = radius * 2
+        elif a_state == 'up':
+            _shift_y = 0
+            _shift_x = -(radius // 2)
+        _img = pygame.transform.scale(self._img[a_state], (radius * 2, radius * 2))
+        _rect = _img.get_rect().move(pos[0] - radius, pos[1] - radius)
+        return _img, _rect, _shift_x, _shift_y
+
+
+# def prepare_head(body, pos, radius, *args):
+#     snake_head = img_list[3]
+#     if len(body) == 1:
+#         return None, None
+#     _img = pygame.transform.scale(snake_head, (radius * 2, radius * 2))
+#     dx = body[0][0] - body[1][0]
+#     dy = body[0][1] - body[1][1]
+#     _shift_x, _shift_y = -(radius // 2), radius
+#     if dx < 0:
+#         _img = pygame.transform.flip(_img, True, False)
+#         _shift_x = radius * 2
+#     if dy < 0:
+#         _img = pygame.transform.rotate(_img, 90)
+#         _shift_y = radius
+#         _shift_x = radius * 2
+#     elif dy > 0:
+#         _img = pygame.transform.rotate(_img, -90)
+#         _shift_y = 0
+#         _shift_x = -(radius // 2)
+#     _rect = _img.get_rect().move(pos[0] - radius, pos[1] - radius)
+#     return _img, _rect, _shift_x, _shift_y
 
 
 def play_sound(sound: str, addr=''):
@@ -173,9 +254,12 @@ def play_sound(sound: str, addr=''):
 play_sound('eat')
 game = True
 menu = MainMenu()
+s_head = SnakeHead()
 convert_error = True
 tm_winner = ''
 while game:
+    camera = Camera(0, 0)
+    my_pos = [0, 0]
     game = menu.exec(screen)
     menu.check_user_name()
     try:
@@ -187,6 +271,7 @@ while game:
             print(' ADDR:', my_addr)
             flag = game
             end_clr = [255, 255, 255]
+
             while flag:
                 cmd = {'key': [], 'name': menu.user_name}
                 for event in pygame.event.get():
@@ -210,6 +295,8 @@ while game:
                         cmd['key'].append("up")
                     if keys[pygame.K_DOWN] or keys[pygame.K_s]:
                         cmd['key'].append("down")
+                    if keys[pygame.K_SPACE]:
+                        cmd['key'] = ["stop"]
                 st = json.dumps(cmd)
                 try:
                     s.sendall(zlib.compress(st.encode()))
@@ -220,7 +307,10 @@ while game:
                     # print(buff)
                 except Exception as err:
                     print('Error of receive:', err)
-
+                if isinstance(data, dict):
+                    old_data = data.copy()
+                else:
+                    old_data = dict()
                 data = dict()
                 while (pos := buff.find(b'0%%0%0%%0')) >= 0:
                     data = buff[:pos]
@@ -252,6 +342,28 @@ while game:
                         end_clr = [250, 255, 250]
                         screen.fill(background)
                     #
+                    # dr = 255 / (Const.WIDTH // 50)
+                    # dg = 255 / (Const.HEIGHT // 50)
+                    #
+                    # r = 0
+                    # g = 0
+                    # b = 100
+                    # for x in range(0, Const.WIDTH, 50):
+                    #     g = 0
+                    #     for y in range(0, Const.HEIGHT, 50):
+                    #         pos = camera.shift((x + 10, y + 10))
+                    #         if 0 <= pos[0] <= width and 0 <= pos[1] <= height:
+                    #             pygame.draw.rect(screen, (int(r), int(g), random.randint(100, 255)), (*pos, 4, 4), 1)
+                    #         g = g + dg
+                    #     r = r + dr
+                    try:
+                        my_pos = data['players'][my_addr]['body'][0]
+                    except Exception as e:
+                        print('GET POS ==>', e)
+                        data = old_data
+                        # my_pos = data['players'][my_addr]['body'][0]
+                    camera.move(*my_pos, data.get('NUMBER', 0))
+
                     for addr, player in data.get('players', dict()).items():
                         # print(player)
                         sound = player.get('sound', '')
@@ -271,45 +383,50 @@ while game:
                         db_color = (255 - color_b) // len_body
                         txt_pos = [0, 0]
                         contour = 0
+                        img, rect, *shift = s_head.get_head(body, camera.shift(body[0]), radius, addr)
                         for i, pos in enumerate(body):
-                            # surf_1 = font.render(f"{hero_length}", False,
-                            #                      'lightblue', background)
-                            surf_0 = font.render(f"{hero_life}", False,
-                                                 'pink', background)
-                            # screen.blit(surf_0, (txt_pos[0], txt_pos[1]))
-                            # screen.blit(surf_1, (txt_pos[0] + 10, txt_pos[1]))
-                            img, rect, *shift = prepare_head(body, player['radius'])
+                            pos = camera.shift(pos)
+                            # if 0 <= pos[0] <= width and 0 <= pos[1] <= height:
+                            if True:
+                                # surf_1 = font.render(f"{hero_length}", False,
+                                #                      'lightblue', background)
+                                surf_0 = font.render(f"{hero_life}", False,
+                                                     'pink', background)
+                                # screen.blit(surf_0, (txt_pos[0], txt_pos[1]))
+                                # screen.blit(surf_1, (txt_pos[0] + 10, txt_pos[1]))
 
-                            _radius = radius
-                            if i == 0:
-                                txt_pos = pos
-                                div = min(2, len(body))
-                                color = (color_r // div, color_g // div, color_b // div)
-                                radius -= 4
-                                if my_head:
-                                    pygame.draw.circle(screen, 'red', pos, _radius + 2, 2)
-                                if len(body) == 1:
+                                _radius = radius
+                                if i == 0:
+                                    txt_pos = pos
+                                    div = min(2, len(body))
+                                    color = (color_r // div, color_g // div, color_b // div)
+                                    radius -= 4
+                                    # if my_head:
+                                    #     pygame.draw.circle(screen, 'red', pos, _radius + 2, 2)
+                                    if len(body) == 1:
+                                        pygame.draw.circle(screen, color, pos, _radius, contour)
+                                    #
+                                    #     pygame.draw.circle(screen, 'white', pos, _radius)
+                                    # else:
+                                    if not img:
+                                        pygame.draw.circle(screen, color, pos, _radius, contour)
+                                else:
+                                    color = (color_r + dr_color * i,
+                                             color_g + dg_color * i,
+                                             color_b + db_color * i)
+                                    radius = max(3, radius / 1.1)
                                     pygame.draw.circle(screen, color, pos, _radius, contour)
-                                #
-                                #     pygame.draw.circle(screen, 'white', pos, _radius)
-                                # else:
-                                if not img:
-                                    pygame.draw.circle(screen, color, pos, _radius, contour)
-                            else:
-                                color = (color_r + dr_color * i,
-                                         color_g + dg_color * i,
-                                         color_b + db_color * i)
-                                radius = max(3, radius / 1.1)
-                                pygame.draw.circle(screen, color, pos, _radius, contour)
-                                contour = 2
-                        # pygame.draw.circle(screen, color, pos, _radius + 2)
-                        if img:
-                            screen.blit(img, rect)
-                            screen.blit(surf_0, (rect[0] + shift[0], rect[1] + shift[1]))
-                        if tm_winner:
-                            surf = font_win.render(tm_winner, False, 'white')
-                            screen.blit(surf, (50, 50))
-                    pygame.display.flip()
+                                    contour = 2
+                            # pygame.draw.circle(screen, color, pos, _radius + 2)
+                            if img:
+                                screen.blit(img, rect)
+                                screen.blit(surf_0, (rect[0] + shift[0], rect[1] + shift[1]))
+                            if tm_winner:
+                                surf = font.render(tm_winner, False, 'white')
+                                screen.blit(surf, (50, 50))
+                else:
+                    screen.fill(background)
+                pygame.display.flip()
                     # clock.tick(fps)
     except ConnectionResetError:
         print('Try reconnect')
