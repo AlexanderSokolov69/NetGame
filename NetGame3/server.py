@@ -21,7 +21,6 @@ def load_config():
     global S_FPS, EAT_COUNT, EAT_LIFE
     with open('srv_config.json') as f:
         data = json.load(f)
-        print(data)
         s_port = data.get('PORT')
         s_host = data.get('HOST')
         if s_port:
@@ -51,6 +50,7 @@ EAT_COUNT = 0
 EAT_LIFE = 0
 
 load_config()
+
 ALIAS = False
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
@@ -61,8 +61,6 @@ hostname = socket.gethostname()
 HOST = socket.gethostbyname(hostname)
 packet_size = 0
 DATA_WIND = Const.data['DATA_WIND']  # размер пакета данных
-# FPS = 0.03  # частота цикла
-# STEP_WAIT = 6
 WIDTH, HEIGHT = Const.WIDTH, Const.HEIGHT
 STEP = Const.STEP
 RADIUS = Const.RADIUS
@@ -76,7 +74,7 @@ rnd = ['left', 'right', 'up', 'down']
 con = sqlite3.connect('data/results.db')
 cur = con.cursor()
 cur.execute("""CREATE TABLE IF NOT EXISTS users 
-                (id INTEGER PRIMARY KEY AUTOINCREMENT, addr VARCHAR(40), wins INTEGER);
+                (id INTEGER PRIMARY KEY AUTOINCREMENT, addr VARCHAR(40), wins INTEGER, name VARCHAR(60));
                 """)
 if Const.restart:
     cur.execute("""DELETE FROM users""")
@@ -85,20 +83,12 @@ if Const.restart:
 win_stat = dict()
 
 
-# class PlayBoard:
-#     def __init__(self):
-#         self.width = WIDTH // STEP
-#         self.height = HEIGHT // STEP
-#         self._board = [[None] * self.width for _ in range(self.height)]
-#         print(len(self._board[0]), len(self._board))
-#
-
 def get_sql_stat():
     global win_stat
     sql_stat = cur.execute("SELECT * FROM users").fetchall()
     win_stat = dict()
     for rec in sql_stat:
-        win_stat[rec[1]] = rec[2]
+        win_stat[rec[1]] = rec[2], rec[3]
 
 
 all_sprites = pygame.sprite.Group()
@@ -391,7 +381,7 @@ class Network:
         self.game_time = datetime.datetime.now()
         self.common_data = {'HOST': HOST, 'PORT': Const.data['PORT'],
                             'WINNER': ''}
-        self.last_winner = ('', 0)
+        self.last_winner = ('', 0, '')
         self.bots_counter = Const.data['BOTS_COUNTER']
         self.game_timer = Const.data['GAME_TIMER']
         # self.step_wait = Const.data['STEP_WAIT']
@@ -462,17 +452,25 @@ class Network:
         win_addr, win_len = '', 0
         for addr, player in self.player_data.items():
             if player.get_length() > win_len:
-                win_addr = f"{player.user_name} ({addr})"
+                win_addr = f"{addr}"
+                win_name = f"{player.user_name} ({addr})"
                 win_len = player.get_length()
                 count = f"{win_addr}. Длина: {win_len}."
-                self.last_winner = win_addr, win_len
+                self.last_winner = win_addr, win_len, win_name
         self.common_data['WINNER'] = count
-        print('Winner:', count)
-        print('new game!')
+        # print('Winner:', count)
+        # print('new game!')
         wins = cur.execute(f"SELECT wins FROM users WHERE TRIM(addr) = '{self.last_winner[0]}'").fetchone()
-        # print(wins)
+        # print("WINS:", wins, self.last_winner)
         if wins:
-            cur.execute(f"UPDATE users SET wins = {wins[0] + 1} WHERE TRIM(addr) = '{self.last_winner[0]}'")
+            cur.execute(f"""UPDATE users SET wins = {wins[0] + 1}, name = '{self.last_winner[2]}' 
+                        WHERE TRIM(addr) = '{self.last_winner[0]}'""")
+            # print(wins)
+            # print(self.last_winner)
+        else:
+            cur.execute(f"""INSERT INTO users (addr, wins, name) 
+            VALUES ('{self.last_winner[0]}', 1, '{self.last_winner[2]}')""")
+
         con.commit()
         get_sql_stat()
         # print(win_stat)
@@ -542,7 +540,7 @@ if __name__ == "__main__":
             print('Connection from:', addr)
             res = cur.execute(f"SELECT * FROM users WHERE TRIM(addr) = '{addr}' ").fetchone()
             if not res:
-                cur.execute(f"INSERT INTO users (addr, wins) VALUES ('{addr}', 0)")
+                cur.execute(f"INSERT INTO users (addr, wins, name) VALUES ('{addr}', 0, '')")
                 con.commit()
             get_sql_stat()
         except BlockingIOError:
@@ -620,15 +618,16 @@ if __name__ == "__main__":
                 player.super_speed = 1
             if addr[:3] != 'bot':
                 color = 'red' if addr == srv_host.last_winner[0] else 'yellow' if addr[:3] != 'bot' else 'gray'
-                text = font.render(f"{i + 1:02}: [{player.user_name}] == LF: {player.get_life()}, LN: {player.get_length()}, "
-                                   f"WINS: {win_stat.get(addr, ' ')}",
+                text = font.render(f"{i + 1:02}: [{win_stat.get(addr, [' ',player.user_name])[1]}] == LF: "
+                                   f"{player.get_life()}, LN: {player.get_length()}, "
+                                   f"WINS: {win_stat.get(addr, [' '])[0]}",
                                    ALIAS, color)
-                screen.blit(text, (45, 70 + i * 25))
+                screen.blit(text, (20, 70 + i * 25))
                 i += 1
         srv_host.super_speed = 0
         screen.blit(texts[0], (S_WIDTH // 2 - texts[0].get_rect().width // 2, 5))
         screen.blit(texts[1], (460, 400))
-        text = font2.render(f"[{srv_host.last_winner[0]}] {srv_host.last_winner[1]}",
+        text = font2.render(f"[{srv_host.last_winner[2]}] {srv_host.last_winner[1]}",
                             ALIAS, 'green')
         screen.blit(text, (500, 450))
         game_time = srv_host.game_timer - srv_host.get_time_sec()
