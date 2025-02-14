@@ -12,14 +12,28 @@ import pygame
 
 from const import Const
 
+
+with open('config.json') as f:
+    data = json.load(f)
+    print(data)
+    s_port = data.get('PORT')
+    s_host = data.get('HOST')
+    if s_port:
+        Const.data['PORT'] = int(s_port)
+    if s_host:
+        Const.data['HOST'] = s_host
+    FULLSCREEN = data.get("FULLSCREEN", 0)
+
 DATA_WIND = Const.data['DATA_WIND']
 SIZE_MUL = 2
 l_text, h_text, step_text = 200, 200, 70
 background = pygame.Color((0, 50, 0))
-
 pygame.init()
 size = width, height = 1400, 900
-screen = pygame.display.set_mode(size)
+if FULLSCREEN:
+    screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
+else:
+    screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
 
 
@@ -161,16 +175,6 @@ img_list = [load_image('snake.png'), load_image('snake2.png'),
             load_image('snake3.png'), load_image('snake4.png')]
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
 
-with open('config.json') as f:
-    data = json.load(f)
-    print(data)
-    s_port = data.get('PORT')
-    s_host = data.get('HOST')
-    if s_port:
-        Const.data['PORT'] = int(s_port)
-    if s_host:
-        Const.data['HOST'] = s_host
-
 
 class SnakeHead:
     def __init__(self):
@@ -200,7 +204,7 @@ class SnakeHead:
             self._history[addr] = (a_state, 0)
         else:
             self._history[addr] = (a_state, a_count + 1)
-        if a_count + 1 > 2:
+        if a_count + 1 > 10:
             self._history[addr] = (_state, 0)
             a_state = _state
         _shift_x, _shift_y = -(radius // 2), radius
@@ -215,29 +219,6 @@ class SnakeHead:
         _img = pygame.transform.scale(self._img[a_state], (radius * 2, radius * 2))
         _rect = _img.get_rect().move(pos[0] - radius, pos[1] - radius)
         return _img, _rect, _shift_x, _shift_y
-
-
-# def prepare_head(body, pos, radius, *args):
-#     snake_head = img_list[3]
-#     if len(body) == 1:
-#         return None, None
-#     _img = pygame.transform.scale(snake_head, (radius * 2, radius * 2))
-#     dx = body[0][0] - body[1][0]
-#     dy = body[0][1] - body[1][1]
-#     _shift_x, _shift_y = -(radius // 2), radius
-#     if dx < 0:
-#         _img = pygame.transform.flip(_img, True, False)
-#         _shift_x = radius * 2
-#     if dy < 0:
-#         _img = pygame.transform.rotate(_img, 90)
-#         _shift_y = radius
-#         _shift_x = radius * 2
-#     elif dy > 0:
-#         _img = pygame.transform.rotate(_img, -90)
-#         _shift_y = 0
-#         _shift_x = -(radius // 2)
-#     _rect = _img.get_rect().move(pos[0] - radius, pos[1] - radius)
-#     return _img, _rect, _shift_x, _shift_y
 
 
 def play_sound(sound: str, addr=''):
@@ -281,8 +262,8 @@ while game:
                         tm_winner = ''
                         print('event')
                         break
-                    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                        flag = False
+                    # if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    #     flag = False
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         cmd['pos'] = event.pos
                 keys = pygame.key.get_pressed()
@@ -297,6 +278,8 @@ while game:
                         cmd['key'].append("down")
                     if keys[pygame.K_SPACE]:
                         cmd['key'] = ["stop"]
+                    if keys[pygame.K_ESCAPE]:
+                        flag = False
                 st = json.dumps(cmd)
                 try:
                     s.sendall(zlib.compress(st.encode()))
