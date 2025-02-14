@@ -1,7 +1,7 @@
 class Const:
     restart = 1
-    WIDTH = 1600  # Кратно STEP
-    HEIGHT = 900  # Кратно STEP
+    WIDTH = 3000  # Кратно STEP
+    HEIGHT = 3000  # Кратно STEP
     STEP = 10
     RADIUS = 8
     COUNT = 10
@@ -12,7 +12,7 @@ class Const:
     data['HOST'] = ''
     data['PORT'] = 5885
     data['GAME_TIMER'] = 120
-    data['BOTS_COUNTER'] = 10
-    data['STEP_WAIT'] = 2
-    data['DATA_WIND'] = 2048
-    data['CHAOS'] = False
+    data['BOTS_COUNTER'] = 30
+    data['STEP_WAIT'] = 1
+    data['DATA_WIND'] = 8192
+    data['CHAOS'] = True
