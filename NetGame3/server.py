@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding:utf-8
+import math
 from pprint import pprint
 import datetime
 import colorsys
@@ -102,7 +103,7 @@ def random_coord():
 
 
 class MySprite(pygame.sprite.Sprite):
-    def __init__(self, pos, radius, color, *args):
+    def __init__(self, pos, radius=5, color='white', *args):
         super().__init__(*args)
         self._radius = radius
         self.image, self.rect = self.new_radius(radius, color)
@@ -197,40 +198,34 @@ class Player(MySprite):
         return old_pos
 
     def update(self):
-        if self._break == 0:
-            self._pos[0] = 0 if self._pos[0] == 0 else self._step * (self._pos[0] // abs(self._pos[0]))
-            self._pos[1] = 0 if self._pos[1] == 0 else self._step * (self._pos[1] // abs(self._pos[1]))
+        if self._break <= 0:
+            self._pos[0] = 0 if self._pos[0] == 0 else math.copysign(self._step, self._pos[0])
+            self._pos[1] = 0 if self._pos[1] == 0 else math.copysign(self._step, self._pos[1])
             cmd = self._data.get('key', [])
-            pos = self._data.get('pos', [])
-            if pos:
-                x, y = self._body[0]
-                px, py = pos
-                new_step = self._step
-                # STEP * (max(abs(x - px), abs(y - py)) + self._radius) // STEP
-                if abs(x - px) > abs(y - py):
-                    cmd = 'left' if x > px else 'right'
-                else:
-                    cmd = 'up' if y > py else 'down'
-            else:
-                new_step = self._step
+            # new_step = self._step
             if cmd:
                 if 'left' in cmd:
-                    self._pos[0] = -new_step
+                    self._pos[0] = -self._step
                     self._pos[1] = 0
                 if 'right' in cmd:
-                    self._pos[0] = new_step
+                    self._pos[0] = self._step
                     self._pos[1] = 0
                 if 'down' in cmd:
-                    self._pos[1] = new_step
+                    self._pos[1] = self._step
                     self._pos[0] = 0
                 if 'up' in cmd:
-                    self._pos[1] = -new_step
+                    self._pos[1] = -self._step
                     self._pos[0] = 0
                 if 'stop' in cmd and self.super_speed == 1:
                     self._pos[1] *= 2
                     self._pos[0] *= 2
                     self.super_speed = 0
                     self.breake()
+            if self.eat_in_head():
+                self.add_segment()
+            if self.is_head_to_head():
+                self.breake()
+            self.is_body_atak()
         else:
             self._break -= 1
         self._data['key'] = None
@@ -238,6 +233,54 @@ class Player(MySprite):
         if self._iter > self._wait:
             self._iter = 0
             self.move()
+
+    def is_body_atak(self):
+        if self.is_break():
+            return False
+        start_segment = 4
+        all_sprites.remove(self)
+        coll = 0
+        for i in range(start_segment, self.get_length()):
+            segment = MySprite(self._body[i])
+            player = pygame.sprite.spritecollideany(segment, all_sprites)
+            if player:
+                coll = i
+                break
+            if i == MIN_SAFE_LENGTH:
+                all_sprites.add(self)
+        else:
+            all_sprites.add(self)
+            return
+        all_sprites.add(self)
+        cut = self.get_length() - coll
+        if cut <= player.get_length():
+            self.del_segment(cut)
+            self._data_out['sound'] = 'ataka'
+            if self != player:
+                player.add_segment(cut, 1)
+                player.add_data({'sound': 'ataka'})
+        else:
+            player.reverse()
+
+    def is_head_to_head(self):
+        if self.is_break():
+            return False
+        all_sprites.remove(self)
+        player = pygame.sprite.spritecollideany(self, all_sprites)
+        all_sprites.add(self)
+        if player:
+            if self.get_life() == 0 and self.get_length() > 10:
+                self.del_segment(5)
+            if player.get_life() == 0 and player.get_length() > 10:
+                player.del_segment(5)
+            self.set_life(-1)
+            player.set_life(-1)
+            self._pos = player.set_pos(self._pos)
+            player.breake()
+            self.breake()
+            return True
+        else:
+            return False
 
     def move(self):
         segment = self._body[0].copy()
@@ -315,22 +358,6 @@ class Player(MySprite):
             self._data_out['sound'] = 'eat'
         return ret
 
-    def is_head_to_head(self, player):
-        if self.is_break() or player.is_break():
-            return False
-        if self == player:
-            return False
-        if self.rect.colliderect(player.rect):
-            player.breake()
-            self.breake()
-            self._pos = player.set_pos(self._pos)
-            if self.get_life() == 0 and self.get_length() > 10:
-                self.del_segment(5)
-            else:
-                self.set_life(-1)
-            return True
-        return False
-
     def reverse(self):
         if self.is_break():
             return
@@ -342,25 +369,6 @@ class Player(MySprite):
         #     return
         self._break = max([40, len(self._body) // 2 + RADIUS])
         self._data_out['sound'] = 'break'
-
-    def is_body_atak(self, player):
-        if self._break:
-            return False
-        start_segment = 4
-        if player == self:
-            start_segment = MIN_SAFE_LENGTH
-        head_rect: pygame.Rect = player.rect
-        for i in range(start_segment, self.get_length()):
-            if head_rect.collidepoint(*self._body[i]):
-                cut = self.get_length() - i
-                if cut <= player.get_length():
-                    self.del_segment(cut)
-                    self._data_out['sound'] = 'ataka'
-                    player.add_data({'sound': 'ataka'})
-                    return cut
-                else:
-                    return -1
-        return 0
 
     def add_data(self, rec: dict):
         for key, val in rec.items():
@@ -422,6 +430,7 @@ class Network:
         timer = self.game_timer - self.get_time_sec()
         ret['TIMER'] = timer
         ret['NUMBER'] = Network.num
+        ret['AREA_SIZE'] = [Const.WIDTH, Const.HEIGHT]
         Network.num += 1
         return ret
 
@@ -546,35 +555,19 @@ if __name__ == "__main__":
             pass
 
         # Обработка активности
-        all_sprites.update()
         # ------------------------------------------------------
         # Игровая механика
-        for addr, player in srv_host.player_data.items():
-            for addr2, player2 in srv_host.player_data.items():
-                if player.is_head_to_head(player2):
-                    break
-                count = player.is_body_atak(player2)
-                if count > 0:
-                    if addr2 != addr:
-                        player2.add_segment(count, 1)
-                elif count < 0:
-                    player2.reverse()
-                    break
-                if addr2 == addr:
-                    continue
+        all_sprites.update()
+        eat_sprites.update()
 
         # Проверка поедания корма
-        eat_sprites.update()
-        for addr, player in srv_host.player_data.items():
-            eat = player.eat_in_head()
-            if eat:
-                player.add_segment()
-                break
         if new_eat_counter == COUNT:
             new_eat_counter = 0
-            if len(eat_sprites) < EAT_COUNT:
-                Eat()
         new_eat_counter += 1
+        if len(eat_sprites) < EAT_COUNT:
+            Eat()
+            # print('EAT:', len(eat_sprites), EAT_COUNT)
+            # print('CNT:', len(srv_host.player_data))
 
         # Передача данных игрокам
         data = srv_host.prepare_to_send()
@@ -597,7 +590,10 @@ if __name__ == "__main__":
             #     pygame.display.set_caption(f"{event.pos}")
             if event.type == pygame.USEREVENT + 1100:
                 rnd_num = randint(0, srv_host.bots_counter - 1)
-                srv_host.player_data[f"bot{rnd_num:03}"].set_data({'key': rnd[random.randint(0, 3)]})
+                try:
+                    srv_host.player_data[f"bot{rnd_num:03}"].set_data({'key': rnd[random.randint(0, 3)]})
+                except:
+                    pass
             if event.type == pygame.USEREVENT + 1200:
                 srv_host.super_speed = 1
 
@@ -605,12 +601,6 @@ if __name__ == "__main__":
         screen.fill(pygame.Color((0, 0, 127)))
         text = font.render(f"{'=' * 10} PLAYERS {'=' * 10}", ALIAS, 'yellow')
         screen.blit(text, (45, 50))
-        # for i, (addr, player) in enumerate(srv_host.player_data.items()):
-        #     color = 'red' if addr == srv_host.last_winner[0] else 'yellow' if addr[:3] != 'bot' else 'gray'
-        #     text = font.render(f"{i + 1:02}: [{addr}] == Life: {player.get_life()}, Len: {player.get_length()}, "
-        #                        f"WINS: {win_stat.get(addr, ' ')}",
-        #                        ALIAS, color)
-        #     screen.blit(text, (45, 70 + i * 25))
         i = 0
         for (addr, player) in srv_host.player_data.items():
             if srv_host.super_speed == 1:

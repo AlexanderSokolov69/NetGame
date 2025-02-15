@@ -312,6 +312,7 @@ while game:
                             packet_number = n
                         else:
                             convert_error = False
+                        Const.WIDTH, Const.HEIGHT = data.get('AREA_SIZE', [Const.WIDTH, Const.HEIGHT])
                     except json.JSONDecodeError:
                         print('JSON convert error.', data)
                         convert_error = False
