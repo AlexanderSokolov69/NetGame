@@ -514,7 +514,7 @@ class Network:
 
 
 if __name__ == "__main__":
-    # fps = FPS
+    packet_size_0 = 0
     srv_host = Network()
     texts = [font2.render(f"{hostname} IP: {HOST} PORT: {Const.data['PORT']}", True, 'red'),
              font2.render("Последний победитель:", True, 'green'),
@@ -525,7 +525,6 @@ if __name__ == "__main__":
     # Игровой цикл
     pygame.time.set_timer(pygame.USEREVENT + 1100, 1000, 0)
     pygame.time.set_timer(pygame.USEREVENT + 1200, 3000, 0)
-    srv_host.init_game()
     new_eat_counter = 0
     # test_time = 0
     cicle = True
@@ -547,9 +546,9 @@ if __name__ == "__main__":
             pass
 
         # Обработка активности
+        all_sprites.update()
         # ------------------------------------------------------
         # Игровая механика
-        all_sprites.update()
         for addr, player in srv_host.player_data.items():
             for addr2, player2 in srv_host.player_data.items():
                 if player.is_head_to_head(player2):
@@ -646,14 +645,12 @@ if __name__ == "__main__":
         screen.blit(texts[4], (500, 240))
         text = font2.render(f"- {Const.data['STEP_WAIT']:01} +", ALIAS, 'orange')
         screen.blit(text, (710, 240))
-        text = font2.render(f"Размер пакета: {10 * (packet_size // 10)}", ALIAS, 'red')
+        packet_size_0 = max([packet_size_0, packet_size])
+        text = font2.render(f"Размер пакета: {10 * (packet_size_0 // 10)}", ALIAS, 'red')
         # text = font2.render(f"Размер пакета: {10 * (test_time // 10000000)}", ALIAS, 'red')
         screen.blit(text, (500, S_HEIGHT - 50))
 
         pygame.display.flip()
-        # test_time = time.time_ns()
-        s_clock.tick(S_FPS)
-        # test_time = time.time_ns() - test_time
 
         # Получаем данные от игроков
         addr = ''
@@ -669,6 +666,9 @@ if __name__ == "__main__":
                 except json.JSONDecodeError:
                     data = dict()
                 srv_host.player_data[addr].set_data(data)
+        # test_time = time.time_ns()
+        s_clock.tick(S_FPS)
+        # test_time = time.time_ns() - test_time
 
     pygame.quit()
     sys.exit()

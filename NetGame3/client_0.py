@@ -133,17 +133,22 @@ class Camera:
         self._center_y = height // 2
         self._queue = []
         self.q_len = 30
-        self.number = 0
+        self._window = 0
 
     def move(self, new_x, new_y, number=0):
-        if number > self.number or number == 0:
-            self.number = number
-            self._x, self._y = new_x, new_y
-            # self._queue.append((new_x, new_y))
-            # if len(self._queue) < self.q_len:
-            #     self._x, self._y = self._queue[0]
-            # else:
-            #     self._x, self._y = self._queue.pop(0)
+        if self._x - new_x > self._window:
+            self._x = new_x + self._window
+        elif new_x - self._x > self._window:
+            self._x = new_x - self._window
+        if self._y - new_y > self._window:
+            self._y = new_y + self._window
+        elif new_y - self._y > self._window:
+            self._y = new_y - self._window
+        # self._queue.append((new_x, new_y))
+        # if len(self._queue) < self.q_len:
+        #     self._x, self._y = self._queue[0]
+        # else:
+        #     self._x, self._y = self._queue.pop(0)
 
     def pos(self):
         return self._x, self._y
@@ -238,6 +243,7 @@ menu = MainMenu()
 s_head = SnakeHead()
 convert_error = True
 tm_winner = ''
+packet_number = 0
 while game:
     camera = Camera(0, 0)
     my_pos = [0, 0]
@@ -300,7 +306,12 @@ while game:
                     buff = buff[pos + 9:]
                     try:
                         data = json.loads(zlib.decompress(data).decode('utf-8'))
-                        convert_error = True
+                        n = data['NUMBER']
+                        if packet_number < n or n == 0:
+                            convert_error = True
+                            packet_number = n
+                        else:
+                            convert_error = False
                     except json.JSONDecodeError:
                         print('JSON convert error.', data)
                         convert_error = False
@@ -399,7 +410,7 @@ while game:
                                              color_b + db_color * i)
                                     radius = max(3, radius / 1.1)
                                     pygame.draw.circle(screen, color, pos, _radius, contour)
-                                    contour = 2
+                                    contour = 6
                             # pygame.draw.circle(screen, color, pos, _radius + 2)
                             if img:
                                 screen.blit(img, rect)
@@ -410,11 +421,10 @@ while game:
                 else:
                     screen.fill(background)
                 pygame.display.flip()
-                    # clock.tick(fps)
     except ConnectionResetError:
         print('Try reconnect')
         continue
-    # except Exception as err:
-    #     print('All errors: ', err)
+    except Exception as err:
+        print('All errors: ', err)
 pygame.quit()
 sys.exit()
