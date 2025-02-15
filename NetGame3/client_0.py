@@ -35,6 +35,7 @@ if FULLSCREEN:
 else:
     screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
+FPS = 40
 
 
 def load_image(name, colorkey=None):
@@ -336,7 +337,7 @@ while game:
                     else:
                         end_clr = [250, 255, 250]
                         screen.fill(background)
-                    #
+
                     # dr = 255 / (Const.WIDTH // 50)
                     # dg = 255 / (Const.HEIGHT // 50)
                     #
@@ -346,9 +347,9 @@ while game:
                     # for x in range(0, Const.WIDTH, 50):
                     #     g = 0
                     #     for y in range(0, Const.HEIGHT, 50):
-                    #         pos = camera.shift((x + 10, y + 10))
+                    #         pos = camera.shift((x + 22, y + 22))
                     #         if 0 <= pos[0] <= width and 0 <= pos[1] <= height:
-                    #             pygame.draw.rect(screen, (int(r), int(g), random.randint(100, 255)), (*pos, 4, 4), 1)
+                    #             pygame.draw.rect(screen, (int(r), int(g), random.randint(100, 255)), (*pos, 6, 6), 1)
                     #         g = g + dg
                     #     r = r + dr
                     try:
@@ -422,6 +423,7 @@ while game:
                 else:
                     screen.fill(background)
                 pygame.display.flip()
+                # clock.tick(FPS)
     except ConnectionResetError:
         print('Try reconnect')
         continue
