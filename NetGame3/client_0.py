@@ -28,8 +28,9 @@ DATA_WIND = Const.data['DATA_WIND']
 SIZE_MUL = 2
 l_text, h_text, step_text = 200, 200, 70
 background = pygame.Color((0, 50, 0))
+time_color = pygame.Color((10, 80, 10))
 pygame.init()
-size = width, height = 1400, 900
+size = width, height = 1700, 1100
 if FULLSCREEN:
     screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
 else:
@@ -177,6 +178,7 @@ sound_eat = pygame.mixer.Sound('data/eat.ogg')
 sound_ataka = pygame.mixer.Sound('data/brake.ogg')
 
 font_win = pygame.font.Font('data/Capsmall.ttf', 50)
+font_time = pygame.font.Font('data/Capsmall.ttf', 80)
 img_list = [load_image('snake.png'), load_image('snake2.png'),
             load_image('snake3.png'), load_image('snake4.png')]
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
@@ -267,7 +269,6 @@ while game:
                         flag = False
                     if event.type == (pygame.USEREVENT + 1000):
                         tm_winner = ''
-                        print('event')
                         break
                     # if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     #     flag = False
@@ -330,13 +331,19 @@ while game:
                         tm_winner = f"Победитель: {winner}"
                         pygame.time.set_timer(pygame.USEREVENT + 1000, 4000, 1)
                     tm = data.get('TIMER', 999)
-                    pygame.display.set_caption(f"До конца раунда осталось: {tm} секунд...")
+                    # pygame.display.set_caption(f"До конца раунда осталось: {tm} секунд...")
                     if tm < 2 or tm == 999:
                         screen.fill(pygame.Color(end_clr))
                         end_clr = max(0, end_clr[0] - 6), max(0, end_clr[1] - 4), max(0, end_clr[2] - 6)
                     else:
                         end_clr = [250, 255, 250]
                         screen.fill(background)
+
+                    surf = font_time.render(f"ТАЙМЕР: {tm}", False, time_color)
+                    screen.blit(surf, (60, 20))
+                    if tm_winner:
+                        surf = font_time.render(tm_winner, False, time_color)
+                        screen.blit(surf, (50, height - 100))
 
                     # dr = 255 / (Const.WIDTH // 50)
                     # dg = 255 / (Const.HEIGHT // 50)
@@ -417,9 +424,6 @@ while game:
                             if img:
                                 screen.blit(img, rect)
                                 screen.blit(surf_0, (rect[0] + shift[0], rect[1] + shift[1]))
-                            if tm_winner:
-                                surf = font.render(tm_winner, False, 'white')
-                                screen.blit(surf, (50, 50))
                 else:
                     screen.fill(background)
                 pygame.display.flip()
