@@ -30,7 +30,7 @@ l_text, h_text, step_text = 200, 200, 70
 background = pygame.Color((0, 50, 0))
 time_color = pygame.Color((10, 80, 10))
 pygame.init()
-size = width, height = 1700, 1100
+size = width, height = 1400, 900
 if FULLSCREEN:
     screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
 else:
@@ -245,8 +245,8 @@ game = True
 menu = MainMenu()
 s_head = SnakeHead()
 convert_error = True
-tm_winner = ''
 packet_number = 0
+tm_winner = ''
 while game:
     camera = Camera(0, 0)
     my_pos = [0, 0]
@@ -327,9 +327,11 @@ while game:
                 if convert_error:
                     winner = data.get('WINNER', '')
                     if winner:
-                        print('Победитель:', winner)
-                        tm_winner = f"Победитель: {winner}"
-                        pygame.time.set_timer(pygame.USEREVENT + 1000, 4000, 1)
+                        # print('Победитель:', winner)
+                        if not tm_winner:
+                            pygame.time.set_timer(pygame.USEREVENT + 1000, 5000, 1)
+                            print('Победитель:', winner)
+                            tm_winner = f"Победитель: {winner}"
                     tm = data.get('TIMER', 999)
                     # pygame.display.set_caption(f"До конца раунда осталось: {tm} секунд...")
                     if tm < 2 or tm == 999:
