@@ -22,6 +22,7 @@ def load_config():
     global S_FPS, EAT_COUNT, EAT_LIFE
     with open('srv_config.json') as f:
         data = json.load(f)
+        print(data)
         s_port = data.get('PORT')
         s_host = data.get('HOST')
         if s_port:
@@ -97,13 +98,13 @@ eat_sprites = pygame.sprite.Group()
 
 
 def random_coord():
-    x = 6 * STEP * (randint(1, WIDTH // STEP // 6 - 1))
-    y = 6 * STEP * (randint(1, HEIGHT // STEP // 6 - 1))
+    x = 5 * STEP * (randint(1, WIDTH // STEP // 5 - 1))
+    y = 5 * STEP * (randint(1, HEIGHT // STEP // 5 - 1))
     return [x, y]
 
 
 class MySprite(pygame.sprite.Sprite):
-    def __init__(self, pos, radius=5, color='white', *args):
+    def __init__(self, pos=(0, 0), radius=10, color='white', *args):
         super().__init__(*args)
         self._radius = radius
         self.image, self.rect = self.new_radius(radius, color)
@@ -114,7 +115,8 @@ class MySprite(pygame.sprite.Sprite):
         self.rect.y = pos[1] - self._radius
 
     def new_radius(self, radius, color):
-        image = pygame.Surface((radius * 2, radius * 2))
+        a = radius * 2
+        image = pygame.Surface((a, a))
         pygame.draw.circle(image, color, (radius, radius), radius)
         self._radius = radius
         return image, image.get_rect()
@@ -186,6 +188,7 @@ class Player(MySprite):
         self.user_name = ''
         self.set_data({'key': rnd[random.randint(0, 3)]})
         self.super_speed = 1
+        self.segment = MySprite()
 
     def is_break(self):
         return self._break > 0
@@ -202,7 +205,6 @@ class Player(MySprite):
             self._pos[0] = 0 if self._pos[0] == 0 else math.copysign(self._step, self._pos[0])
             self._pos[1] = 0 if self._pos[1] == 0 else math.copysign(self._step, self._pos[1])
             cmd = self._data.get('key', [])
-            # new_step = self._step
             if cmd:
                 if 'left' in cmd:
                     self._pos[0] = -self._step
@@ -221,11 +223,12 @@ class Player(MySprite):
                     self._pos[0] *= 2
                     self.super_speed = 0
                     self.breake()
+            sprites = all_sprites.copy()
+            sprites.remove(self)
             if self.eat_in_head():
                 self.add_segment()
-            if self.is_head_to_head():
-                self.breake()
-            self.is_body_atak()
+            self.is_head_to_head(sprites)
+            self.is_body_atak(sprites)
         else:
             self._break -= 1
         self._data['key'] = None
@@ -234,53 +237,48 @@ class Player(MySprite):
             self._iter = 0
             self.move()
 
-    def is_body_atak(self):
+    def is_body_atak(self, sprites):
         if self.is_break():
             return False
         start_segment = 4
-        all_sprites.remove(self)
         coll = 0
-        for i in range(start_segment, self.get_length()):
-            segment = MySprite(self._body[i])
-            player = pygame.sprite.spritecollideany(segment, all_sprites)
+        for i in range(start_segment, self.get_length(), 4):
+            self.segment.move_point(self._body[i])
+            player = pygame.sprite.spritecollideany(self.segment, sprites)
             if player:
                 coll = i
                 break
-            if i == MIN_SAFE_LENGTH:
-                all_sprites.add(self)
+            if i >= MIN_SAFE_LENGTH:
+                sprites.add(self)
         else:
-            all_sprites.add(self)
             return
-        all_sprites.add(self)
         cut = self.get_length() - coll
-        if cut <= player.get_length():
+        if self == player:
             self.del_segment(cut)
             self._data_out['sound'] = 'ataka'
-            if self != player:
+        else:
+            if cut <= player.get_length():
+                self.del_segment(cut)
+                self._data_out['sound'] = 'ataka'
                 player.add_segment(cut, 1)
                 player.add_data({'sound': 'ataka'})
-        else:
-            player.reverse()
+            else:
+                player.reverse()
 
-    def is_head_to_head(self):
+    def is_head_to_head(self, sprites):
         if self.is_break():
             return False
-        all_sprites.remove(self)
-        player = pygame.sprite.spritecollideany(self, all_sprites)
-        all_sprites.add(self)
+        player = pygame.sprite.spritecollideany(self, sprites)
         if player:
+            self._pos = player.set_pos(self._pos)
             if self.get_life() == 0 and self.get_length() > 10:
                 self.del_segment(5)
             if player.get_life() == 0 and player.get_length() > 10:
                 player.del_segment(5)
             self.set_life(-1)
             player.set_life(-1)
-            self._pos = player.set_pos(self._pos)
             player.breake()
             self.breake()
-            return True
-        else:
-            return False
 
     def move(self):
         segment = self._body[0].copy()
@@ -454,6 +452,7 @@ class Network:
                 self.game_time.second + self.game_time.minute * 60)
 
     def reset_game(self):
+        global all_sprites
         Network.num = 0
         self.super_speed = 1
         count = ''
@@ -485,6 +484,7 @@ class Network:
         # print(win_stat)
         self.sound_on = False
         coords.clear()
+        all_sprites = pygame.sprite.Group()
         for addr in self.player_data.copy():
             if addr[:3] == 'bot':
                 self.player_data.pop(addr)
