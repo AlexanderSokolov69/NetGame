@@ -223,12 +223,13 @@ class Player(MySprite):
                     self._pos[0] *= 2
                     self.super_speed = 0
                     self.breake()
-            sprites = all_sprites.copy()
-            sprites.remove(self)
-            if self.eat_in_head():
-                self.add_segment()
-            self.is_head_to_head(sprites)
-            self.is_body_atak(sprites)
+            if Network.num % 4 == 0:
+                sprites = all_sprites.copy()
+                sprites.remove(self)
+                if self.eat_in_head():
+                    self.add_segment()
+                self.is_head_to_head(sprites)
+                self.is_body_atak(sprites)
         else:
             self._break -= 1
         self._data['key'] = None
@@ -242,7 +243,8 @@ class Player(MySprite):
             return False
         start_segment = 4
         coll = 0
-        for i in range(start_segment, self.get_length(), 4):
+        step = max([1, (self.get_length() - start_segment) // 10])
+        for i in range(start_segment, self.get_length(), step):
             self.segment.move_point(self._body[i])
             player = pygame.sprite.spritecollideany(self.segment, sprites)
             if player:
@@ -282,7 +284,7 @@ class Player(MySprite):
 
     def move(self):
         segment = self._body[0].copy()
-        for i in range(len(self._body)):
+        for i in range(self.get_length()):
             if i == 0:
                 self._body[i] = [(self._body[i][0] + self._pos[0]) % WIDTH,
                                  (self._body[i][1] + self._pos[1]) % HEIGHT]
