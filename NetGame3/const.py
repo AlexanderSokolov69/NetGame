@@ -4,7 +4,7 @@ class Const:
     HEIGHT = 3000  # Кратно STEP
     STEP = 10
     RADIUS = 8
-    COUNT = 10
+    COUNT = 2
     SIZE_MUL = 2
     MIN_SAFE_LENGTH = 30
     START_LIFE = 10
