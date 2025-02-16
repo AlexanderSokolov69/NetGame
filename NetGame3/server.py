@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 # coding:utf-8
 import math
-from pprint import pprint
 import datetime
-import colorsys
 import random
 import socket
 import sys
-import time
 import json
 import zlib
 import sqlite3
