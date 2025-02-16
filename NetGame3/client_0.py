@@ -36,7 +36,7 @@ if FULLSCREEN:
 else:
     screen = pygame.display.set_mode(size, pygame.HWSURFACE | pygame.DOUBLEBUF)
 clock = pygame.time.Clock()
-FPS = 40
+pygame.display.set_caption(f'ЗМЕИНЫЕ ГОНКИ. {Const.VERSION} (клиент)')
 
 
 def load_image(name, colorkey=None):
@@ -77,6 +77,10 @@ class MainMenu:
             rect = rect.move(l_text, h_text + i * step_text)
             self.text_rect.append(rect)
         # print(self.text_rect)
+        self.snake = [[width // 2, height // 2 + 70] for _ in range(60)]
+        self.radius = 20
+        self.step = 6
+        self.pos = [self.step, 0]
 
     def check_user_name(self):
         if not self.user_name:
@@ -85,6 +89,7 @@ class MainMenu:
     def exec(self, scr: pygame.Surface):
         mouse_pos = 0, 0
         click = False
+        m_clock = pygame.time.Clock()
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -96,6 +101,14 @@ class MainMenu:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_BACKSPACE:
                         self.user_name = self.user_name[:-1]
+                    if event.key in (pygame.K_LEFT, pygame.K_a):
+                        self.pos = [-self.step, 0]
+                    if event.key in (pygame.K_RIGHT, pygame.K_d):
+                        self.pos = [self.step, 0]
+                    if event.key in (pygame.K_UP, pygame.K_w):
+                        self.pos = [0, -self.step]
+                    if event.key in (pygame.K_DOWN, pygame.K_s):
+                        self.pos = [0, self.step]
                     else:
                         try:
                             sym = chr(event.key)
@@ -106,6 +119,7 @@ class MainMenu:
 
             scr.fill('black')
             scr.blit(self.image, (0, 0))
+            self.draw_snake(scr)
             scr.blit(self.image_cobra, (width - 650, height - 600))
             lx = width // 2 - self.title.get_rect().width // 2
             scr.blit(self.title, (lx, 50))
@@ -125,6 +139,24 @@ class MainMenu:
             surf_user_name = self.font.render(f"NikName: {self.user_name}", True, 'black')
             scr.blit(surf_user_name, (610, 150))
             pygame.display.flip()
+            m_clock.tick(60)
+
+    def draw_snake(self, scr: pygame.Surface):
+        segment = (self.snake[0][0] + self.pos[0]) % width, (self.snake[0][1] + self.pos[1]) % height
+        radius = self.radius
+        color = (0, 50, 0)
+        cont = 0
+        for i in range(len(self.snake)):
+            if i % 3 == 0:
+                pygame.draw.circle(scr, color, self.snake[i], radius, cont)
+            if i == 0:
+                pygame.draw.circle(scr, 'lightgreen', self.snake[i], radius - 10, cont)
+            radius = max(8, radius // 1.04)
+            color = (min(255, color[0] + 4),
+                     min(255, color[1] + 4),
+                     min(255, color[2] + 4))
+            self.snake[i], segment = segment, self.snake[i]
+            cont = 4
 
 
 class Camera:
@@ -265,7 +297,7 @@ while game:
             print(' ADDR:', my_addr)
             flag = game
             end_clr = [255, 255, 255]
-
+            len_body = 0
             while flag:
                 cmd = {'key': [], 'name': menu.user_name}
                 for event in pygame.event.get():
@@ -387,6 +419,10 @@ while game:
                         hero_life = player['life']
                         radius = player['radius']
                         my_head = addr == my_addr
+                        if my_head:
+                            len_body = len(body)
+                            surf = font_time.render(f"ДЛИНА: {len_body}", False, time_color)
+                            screen.blit(surf, (width - surf.get_rect().width - 50, 120))
                         # print(radius)
                         color_r, color_g, color_b = player['color']
                         dr_color = (255 - color_r) // len_body

@@ -1,4 +1,5 @@
 class Const:
+    VERSION = 'v2.96'
     restart = 1
     WIDTH = 3000  # Кратно STEP
     HEIGHT = 3000  # Кратно STEP
