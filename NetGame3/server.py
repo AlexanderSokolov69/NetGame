@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 # coding:utf-8
+import math
 import datetime
-import colorsys
 import random
 import socket
 import sys
-# import time
 import json
 import zlib
 import sqlite3
@@ -14,32 +13,60 @@ from random import randint
 import pygame
 
 from const import Const
+from cl_color import Color
+
+
+def load_config():
+    global S_FPS, EAT_COUNT, EAT_LIFE
+    with open('srv_config.json') as f:
+        data = json.load(f)
+        print(data)
+        s_port = data.get('PORT')
+        s_host = data.get('HOST')
+        if s_port:
+            Const.data['PORT'] = int(s_port)
+        if s_host:
+            Const.data['HOST'] = s_host
+        Const.data['GAME_TIMER'] = int(data.get('GAME_TIMER', Const.data['GAME_TIMER']))
+        Const.data['BOTS_COUNTER'] = int(data.get('BOTS_COUNTER', Const.data['BOTS_COUNTER']))
+        Const.data['DATA_WIND'] = int(data.get('DATA_WIND', Const.data['DATA_WIND']))
+        Const.data['CHAOS'] = int(data.get('CHAOS', Const.data['CHAOS']))
+        S_FPS = int(data.get('S_FPS', 100))
+        EAT_COUNT = int(data.get('EAT_COUNT', 10))
+        EAT_LIFE = int(data.get('EAT_LIFE', 300))
+        Const.MIN_SAFE_LENGTH = int(data.get('MIN_SAFE_LENGTH', 30))
+        Const.START_LIFE = int(data.get('START_LIFE', 10))
+        Const.WIDTH = int(data.get('WIDTH', 3000))
+        Const.HEIGHT = int(data.get('HEIGHT', 3000))
+
 
 pygame.init()
-S_SIZE = S_WIDTH, S_HEIGHT = 850, 600
+S_SIZE = S_WIDTH, S_HEIGHT = 850, 550
 screen = pygame.display.set_mode(S_SIZE)
+pygame.display.set_caption(f'ЗМЕИНЫЕ ГОНКИ. {Const.VERSION} (сервер)')
 s_clock = pygame.time.Clock()
-S_FPS = 20
+S_FPS = 0
+EAT_COUNT = 0
+EAT_LIFE = 0
+
+load_config()
+
 ALIAS = False
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
-font2 = pygame.font.Font('data/Capsmall.ttf', size=30)
+font2 = pygame.font.Font('data/Capsmall.ttf', size=25)
 ten_sound = pygame.mixer.Sound('data/ten_second.ogg')
 
 hostname = socket.gethostname()
 HOST = socket.gethostbyname(hostname)
 packet_size = 0
 DATA_WIND = Const.data['DATA_WIND']  # размер пакета данных
-# FPS = 0.03  # частота цикла
-# STEP_WAIT = 6
 WIDTH, HEIGHT = Const.WIDTH, Const.HEIGHT
-STEP = 10
-RADIUS = 8
-COUNT = 2
-EAT_COUNT = 40
-EAT_LIFE = 200
-SIZE_MUL = 2
-MIN_SAFE_LENGTH = 15
+STEP = Const.STEP
+RADIUS = Const.RADIUS
+COUNT = Const.COUNT
+SIZE_MUL = Const.SIZE_MUL
+MIN_SAFE_LENGTH = Const.MIN_SAFE_LENGTH
 
 coords = set()
 rnd = ['left', 'right', 'up', 'down']
@@ -47,7 +74,7 @@ rnd = ['left', 'right', 'up', 'down']
 con = sqlite3.connect('data/results.db')
 cur = con.cursor()
 cur.execute("""CREATE TABLE IF NOT EXISTS users 
-                (id INTEGER PRIMARY KEY AUTOINCREMENT, addr VARCHAR(40), wins INTEGER);
+                (id INTEGER PRIMARY KEY AUTOINCREMENT, addr VARCHAR(40), wins INTEGER, name VARCHAR(60));
                 """)
 if Const.restart:
     cur.execute("""DELETE FROM users""")
@@ -61,28 +88,21 @@ def get_sql_stat():
     sql_stat = cur.execute("SELECT * FROM users").fetchall()
     win_stat = dict()
     for rec in sql_stat:
-        win_stat[rec[1]] = rec[2]
-
-
-# def random_coord():
-#     x, y = 50, 50
-#     while (x, y) in coords:
-#         x = 50 * ((STEP * ((randint(50, WIDTH - 50)) // STEP)) // 50)
-#         y = 50 * ((STEP * ((randint(50, HEIGHT - 50)) // STEP)) // 50)
-#     coords.add((x, y))
-#     return [x, y]
-def random_coord():
-    x = 50 * ((STEP * ((randint(50, WIDTH - 50)) // STEP)) // 50)
-    y = 50 * ((STEP * ((randint(50, HEIGHT - 50)) // STEP)) // 50)
-    return [x, y]
+        win_stat[rec[1]] = rec[2], rec[3]
 
 
 all_sprites = pygame.sprite.Group()
 eat_sprites = pygame.sprite.Group()
 
 
+def random_coord():
+    x = 5 * STEP * (randint(1, WIDTH // STEP // 5 - 1))
+    y = 5 * STEP * (randint(1, HEIGHT // STEP // 5 - 1))
+    return [x, y]
+
+
 class MySprite(pygame.sprite.Sprite):
-    def __init__(self, pos, radius, color, *args):
+    def __init__(self, pos=(0, 0), radius=10, color='white', *args):
         super().__init__(*args)
         self._radius = radius
         self.image, self.rect = self.new_radius(radius, color)
@@ -93,23 +113,15 @@ class MySprite(pygame.sprite.Sprite):
         self.rect.y = pos[1] - self._radius
 
     def new_radius(self, radius, color):
-        image = pygame.Surface((radius * 2, radius * 2))
+        a = radius * 2
+        image = pygame.Surface((a, a))
         pygame.draw.circle(image, color, (radius, radius), radius)
         self._radius = radius
         return image, image.get_rect()
 
+    def get_radius(self):
+        return self._radius
 
-class Color:
-    data = [0.1, 0.95, 0.2, 0,85, 0.3, 0.75, 0.4, 0.65, 0.5,
-            0.55, 0.6, 0.45, 0.7, 0.35, 0.8, 0.25, 0.9, 0.15]
-    random.shuffle(data)
-    count = 0
-
-    def __init__(self):
-        h, s, l = Color.data[Color.count], 0.9, 0.4 + random.random() / 5.0
-        r, g, b = [int(256 * i) for i in colorsys.hls_to_rgb(h, l, s)]
-        self.color = (r, g, b)
-        Color.count = (Color.count + 1) % len(Color.data)
 
 
 class Eat(MySprite):
@@ -119,13 +131,13 @@ class Eat(MySprite):
         self._radius = 8
         self._figure = 0
         self._color = (50, 255, 50)
-        self._life = ''
+        self._life = 0
         super().__init__(self._body[0], self._radius, self._color, eat_sprites)
         self._count = EAT_LIFE
 
     def get_data(self):
         return {'body': self._body, 'radius': self._radius, 'color': self._color,
-                'figure': self._figure, 'length': '', 'life': self._life}
+                'figure': self._figure, 'length': '', 'life': '', 'breake': 0}
 
     def get_head(self):
         return self._body[0]
@@ -148,39 +160,38 @@ class Player(MySprite):
             pos = random_coord()
         self._pos = [0, 0]
         self._body = [pos]
+        self._color = Color().color
+        super().__init__(self._body[0], radius, self._color, all_sprites)
         self._inc = 0
-        self._radius = radius
         self._data = dict()
         self._data_out = dict()
         self._step = STEP
-        self._color = Color().color
-        self._iter = 0
-        self._wait = Const.data['STEP_WAIT']
         self._figure = 0
         self._break = 0
-        self._life = 50
-        super().__init__(self._body[0], self._radius, self._color, all_sprites)
+        self._life = Const.START_LIFE
+        self.user_name = ''
         self.set_data({'key': rnd[random.randint(0, 3)]})
+        self.super_speed = 1
+        self.segment = MySprite()
+
+    def is_break(self):
+        return self._break > 0
+
+    def get_pos(self):
+        return self._pos
+
+    def set_pos(self, pos):
+        old_pos, self._pos = self._pos, pos
+        return old_pos
 
     def update(self):
-        # if not self._data:
-        #     return
-        if self._break == 0:
+        if self._break <= 0:
+            self._pos[0] = 0 if self._pos[0] == 0 else math.copysign(self._step, self._pos[0])
+            self._pos[1] = 0 if self._pos[1] == 0 else math.copysign(self._step, self._pos[1])
             cmd = self._data.get('key', [])
             pos = self._data.get('pos', [])
-            if pos:
-                x, y = self._body[0]
-                px, py = pos
-                if abs(x - px) > abs(y - py):
-                    if x > px:
-                        cmd = 'left'
-                    else:
-                        cmd = 'right'
-                else:
-                    if y > py:
-                        cmd = 'up'
-                    else:
-                        cmd = 'down'
+            # if pos:
+            #     self.move_head([pos[0] - self._body[0][0], pos[1] - self._body[0][1]])
             if cmd:
                 if 'left' in cmd:
                     self._pos[0] = -self._step
@@ -194,22 +205,86 @@ class Player(MySprite):
                 if 'up' in cmd:
                     self._pos[1] = -self._step
                     self._pos[0] = 0
+                if 'stop' in cmd and self.super_speed == 1:
+                    self._pos[1] *= 2
+                    self._pos[0] *= 2
+                    self.super_speed = 0
+                    self.breake()
+            if Network.num % 3 == 0:
+                sprites = all_sprites.copy()
+                sprites.remove(self)
+                if self.eat_in_head():
+                    self.add_segment()
+                self.is_head_to_head(sprites)
+                self.is_body_atak(sprites)
         else:
             self._break -= 1
         self._data['key'] = None
-        self._iter += 1
-        if self._iter > self._wait:
-            self._iter = 0
-            self.move()
+        self.move()
+
+    def is_body_atak(self, sprites):
+        if self.is_break():
+            return False
+        start_segment = 4
+        coll = 0
+        step = max([1, (self.get_length() - start_segment) // 10])
+        for i in range(start_segment, self.get_length(), step):
+            self.segment.move_point(self._body[i])
+            player = pygame.sprite.spritecollideany(self.segment, sprites)
+            if player:
+                coll = i
+                break
+            if i >= MIN_SAFE_LENGTH:
+                sprites.add(self)
+        else:
+            return
+        cut = self.get_length() - coll
+        if self == player:
+            self.del_segment(cut)
+            self._data_out['sound'] = 'ataka'
+        else:
+            if cut <= player.get_length():
+                self.del_segment(cut)
+                self._data_out['sound'] = 'ataka'
+                player.add_segment(cut, 1)
+                player.add_data({'sound': 'ataka'})
+            else:
+                player.reverse()
+
+    def is_head_to_head(self, sprites):
+        if self.is_break():
+            return False
+        player = pygame.sprite.spritecollideany(self, sprites)
+        if player:
+            pos = player.get_head()
+            if math.copysign(1, self._pos[0]) == math.copysign(1, pos[0]) \
+                    and math.copysign(1, self._pos[1]) == math.copysign(1, pos[1]):
+                if self.get_length() > player.get_length():
+                    radius = player.move_head([math.copysign(1, self._pos[0]) * self.get_radius(),
+                                               math.copysign(1, self._pos[1]) * self.get_radius()])
+                    # self.move_head([self._pos[0] * radius, self._pos[1] * radius])
+                else:
+                    # radius = player.move_head([self._pos[0] * self.get_radius(), self._pos[1] * self.get_radius()])
+                    radius = player.get_radius()
+                    self.move_head([math.copysign(1, self._pos[0]) * radius,
+                                    math.copysign(1, self._pos[1]) * radius])
+            self._pos = player.set_pos(self._pos)
+            if self.get_life() == 0 and self.get_length() > 10:
+                self.del_segment(5)
+            if player.get_life() == 0 and player.get_length() > 10:
+                player.del_segment(5)
+            self.set_life(-1)
+            player.set_life(-1)
+            player.breake()
+            self.breake()
 
     def move(self):
-        for i in range(len(self._body)):
+        segment = self._body[0].copy()
+        for i in range(self.get_length()):
             if i == 0:
-                segment = self._body[i].copy()
                 self._body[i] = [(self._body[i][0] + self._pos[0]) % WIDTH,
                                  (self._body[i][1] + self._pos[1]) % HEIGHT]
                 self.move_point(self._body[0])
-                # print(self.rect, '|', self._pos, '|', self._body[0])
             else:
                 segment, self._body[i] = self._body[i], segment
         self.add_segment(count=self._inc)
@@ -220,17 +295,24 @@ class Player(MySprite):
         segment = self._body[-1]
         for _ in range(count):
             self._body.append(segment)
-        self.image, self.rect = self.new_radius(max(10, RADIUS + len(self._body) // SIZE_MUL), self._color)
+        self.image, self.rect = self.new_radius(self.calc_radius(),
+                                                self._color)
         self.move_point(self._body[0])
+
+    def calc_radius(self):
+        return max(RADIUS, RADIUS + len(self._body) // SIZE_MUL)
 
     def del_segment(self, count=1):
         for _ in range(min(count, len(self._body) - 1)):
             self._body.pop()
+        self.image, self.rect = self.new_radius(self.calc_radius(),
+                                                self._color)
         if self.get_life() > 0:
             self.set_life(-1)
 
     def set_data(self, data):
         self._data = data
+        self.user_name = self._data.get('name', '')
 
     def get_data(self):
         self._data_out['body'] = self._body
@@ -239,12 +321,22 @@ class Player(MySprite):
         self._data_out['figure'] = self._figure
         self._data_out['length'] = self.get_length()
         self._data_out['life'] = self._life
+        self._data_out['breake'] = self._break
         to_send = self._data_out.copy()
         self._data_out.clear()
         return to_send
 
     def get_head(self):
         return self._body[0]
+
+    def move_head(self, step):
+        old = self._body[0]
+        if abs(step[0]) > abs(step[1]):
+            step[0] = 0
+        else:
+            step[1] = 0
+        self._body[0] = [self._body[0][0] + step[0], self._body[0][1] + step[1]]
+        return self.get_radius()
 
     def get_length(self):
         return len(self._body)
@@ -258,58 +350,31 @@ class Player(MySprite):
         return self._life
 
     def is_in_head(self, pos):
+        if self._break:
+            return False
         px, py = self._body[0]
-        h_size = self.get_length() // SIZE_MUL + RADIUS
-        ret = abs(pos[0] - px) < h_size and abs(pos[1] - py) < h_size
-        return ret
+        return self.rect.collidepoint(pos)
+        # return abs(pos[0] - px) < self._radius and abs(pos[1] - py) < self._radius
 
     def eat_in_head(self):
+        if self._break:
+            return False
         ret = pygame.sprite.spritecollide(self, eat_sprites, True)
         if ret:
             self._data_out['sound'] = 'eat'
         return ret
 
-    def is_head_to_head(self, player):
-        pos = player.get_head()
-        size = player.get_length() // SIZE_MUL + self.get_length() // SIZE_MUL + 2 * RADIUS
-        delta_x = abs(self._body[0][0] - pos[0]) - size
-        delta_y = abs(self._body[0][1] - pos[1]) - size
-        if delta_x < 0 and delta_y < 0:
-            if self.get_life() == 0 and self.get_length() > 10:
-                # self.del_segment(len(self._body))
-                self.del_segment(5)
-            else:
-                self.set_life(-1)
-            # player.set_life(-1)
-            return False
-        return False
-
-    def breake(self):
-        if self._break > 0:
+    def reverse(self):
+        if self.is_break():
             return
         self._pos = [self._pos[0] * -1, self._pos[1] * -1]
-        self._break = len(self._body) // 2 + RADIUS
-        self._data_out['sound'] = 'break'
+        self.breake()
 
-    def is_body_atak(self, player):
-        start_segment = 1
-        if player == self:
-            start_segment = MIN_SAFE_LENGTH
-        x, y = player.get_head()
-        size = player.get_length() // SIZE_MUL + RADIUS
-        for i in range(start_segment, self.get_length()):
-            sx, sy = self._body[i]
-            # print(sx, sy)
-            if abs(x - sx) - size < 0 and abs(y - sy) - size < 0:
-                cut = self.get_length() - i
-                if cut <= player.get_length():
-                    self.del_segment(cut)
-                    self._data_out['sound'] = 'ataka'
-                    player.add_data({'sound': 'ataka'})
-                    return cut
-                else:
-                    return -1
-        return 0
+    def breake(self):
+        if self.is_break():
+            return
+        self._break = max(RADIUS, self.get_length() // 2)
+        self._data_out['sound'] = 'break'
 
     def add_data(self, rec: dict):
         for key, val in rec.items():
@@ -317,8 +382,11 @@ class Player(MySprite):
 
 
 class Network:
+    num = 0
+
     def __init__(self):
         self.sound_on = False
+        self.super_speed = 1
         self.clients = []
         self.player_sockets = []
         self.player_data = dict()
@@ -327,32 +395,32 @@ class Network:
         self.game_time = datetime.datetime.now()
         self.common_data = {'HOST': HOST, 'PORT': Const.data['PORT'],
                             'WINNER': ''}
-        self.last_winner = ('', 0)
+        self.last_winner = ('', 0, '')
         self.bots_counter = Const.data['BOTS_COUNTER']
         self.game_timer = Const.data['GAME_TIMER']
-        # self.step_wait = Const.data['STEP_WAIT']
-        self.rect_area = {'game_timer': [pygame.Rect(710, 170, 15, 15), pygame.Rect(790, 170, 20, 15)],
-                          'bots_counter': [pygame.Rect(710, 210, 15, 15), pygame.Rect(767, 210, 20, 15)],
-                          'step_wait': [pygame.Rect(710, 250, 15, 15), pygame.Rect(760, 250, 20, 15)]
+        self.rect_area = {'game_timer': [pygame.Rect(710, 170, 15, 15), pygame.Rect(770, 170, 20, 15)],
+                          'bots_counter': [pygame.Rect(710, 210, 15, 15), pygame.Rect(760, 210, 20, 15)],
+                          'step_wait': [pygame.Rect(710, 250, 15, 15), pygame.Rect(750, 250, 20, 15)]
                           }
         self.reset_game()
 
     def check_click(self, pos):
+        global c_S_FPS
         def check_area(pos: list[int, int], rect: pygame.Rect):
-            return rect.x <= pos[0] <= rect.x +rect.w and rect.y <= pos[1] <= rect.y + rect.h
+            return rect.collidepoint(pos)
 
         if check_area(pos, self.rect_area['bots_counter'][0]):
             self.bots_counter = max(0, self.bots_counter - 1)
         elif check_area(pos, self.rect_area['bots_counter'][1]):
-            self.bots_counter = min(20, self.bots_counter + 1)
+            self.bots_counter = min(50, self.bots_counter + 1)
         elif check_area(pos, self.rect_area['game_timer'][0]):
             self.game_timer = max(10, self.game_timer - 10)
         elif check_area(pos, self.rect_area['game_timer'][1]):
             self.game_timer = min(600, self.game_timer + 10)
         elif check_area(pos, self.rect_area['step_wait'][0]):
-            Const.data['STEP_WAIT'] = max(0, Const.data['STEP_WAIT'] - 1)
+            c_S_FPS = max(0, c_S_FPS - 1)
         elif check_area(pos, self.rect_area['step_wait'][1]):
-            Const.data['STEP_WAIT'] = min(15, Const.data['STEP_WAIT'] + 1)
+            c_S_FPS = min(8, c_S_FPS + 1)
 
     def prepare_to_send(self):
         data = dict()
@@ -367,6 +435,9 @@ class Network:
             self.common_data['WINNER'] = ''
         timer = self.game_timer - self.get_time_sec()
         ret['TIMER'] = timer
+        ret['NUMBER'] = Network.num
+        ret['AREA_SIZE'] = [Const.WIDTH, Const.HEIGHT]
+        Network.num += 1
         return ret
 
     def init_socket(self):
@@ -389,33 +460,46 @@ class Network:
                 self.game_time.second + self.game_time.minute * 60)
 
     def reset_game(self):
+        global all_sprites
+        Network.num = 0
+        self.super_speed = 1
         count = ''
         self.game_time = datetime.datetime.now()
         win_addr, win_len = '', 0
         for addr, player in self.player_data.items():
             if player.get_length() > win_len:
-                win_addr = addr
+                win_addr = f"{addr}"
+                win_name = f"{player.user_name} ({addr})"
                 win_len = player.get_length()
                 count = f"{win_addr}. Длина: {win_len}."
-                self.last_winner = win_addr, win_len
+                self.last_winner = win_addr, win_len, win_name
         self.common_data['WINNER'] = count
-        print('Winner:', count)
-        print('new game!')
+        # print('Winner:', count)
+        # print('new game!')
         wins = cur.execute(f"SELECT wins FROM users WHERE TRIM(addr) = '{self.last_winner[0]}'").fetchone()
-        # print(wins)
+        # print("WINS:", wins, self.last_winner)
         if wins:
-            cur.execute(f"UPDATE users SET wins = {wins[0] + 1} WHERE TRIM(addr) = '{self.last_winner[0]}'")
+            cur.execute(f"""UPDATE users SET wins = {wins[0] + 1}, name = '{self.last_winner[2]}' 
+                        WHERE TRIM(addr) = '{self.last_winner[0]}'""")
+            # print(wins)
+            # print(self.last_winner)
+        else:
+            cur.execute(f"""INSERT INTO users (addr, wins, name) 
+            VALUES ('{self.last_winner[0]}', 1, '{self.last_winner[2]}')""")
+
         con.commit()
         get_sql_stat()
         # print(win_stat)
         self.sound_on = False
         coords.clear()
+        all_sprites = pygame.sprite.Group()
         for addr in self.player_data.copy():
             if addr[:3] == 'bot':
                 self.player_data.pop(addr)
         for i in range(self.bots_counter):
             player = Player()
-            player.set_data({'key': 'left'})
+            if not Const.data['CHAOS']:
+                player.set_data({'key': 'left'})
             player.add_segment(12)
             self.player_data[f"bot{i:03}"] = player
         for addr in self.player_data.keys():
@@ -425,7 +509,7 @@ class Network:
     def handle(self, sock: socket.socket) -> any:
         data = None
         try:
-            data = sock.recv(DATA_WIND).decode()  # Should be ready
+            data = zlib.decompress(sock.recv(DATA_WIND)).decode()  # Should be ready
         except ConnectionError:
             print(f"Client suddenly closed while receiving {sock}")
             return None
@@ -447,16 +531,20 @@ class Network:
 
 
 if __name__ == "__main__":
-    # fps = FPS
+    c_S_FPS = max(0, S_FPS // 10 - 1)
+    packet_size_0 = 0
     srv_host = Network()
-    texts = [font2.render(f"{hostname} IP: {HOST} PORT: {Const.data['PORT']}",True, 'red'),
-             font2.render("Последний победитель:",True, 'green'),
+    texts = [font2.render(f"{hostname} IP: {HOST} PORT: {Const.data['PORT']}", True, 'red'),
+             font2.render("Последний победитель:", True, 'green'),
              font2.render('Ботов в игре:', True, 'orange'),
              font2.render('Длина тайма:', True, 'orange'),
              font2.render('Скорость:', True, 'orange')]
 
     # Игровой цикл
+    pygame.time.set_timer(pygame.USEREVENT + 1100, 1000, 0)
+    pygame.time.set_timer(pygame.USEREVENT + 1200, 3000, 0)
     new_eat_counter = 0
+    # test_time = 0
     cicle = True
     while cicle:
         srv_host.init_game()
@@ -469,7 +557,7 @@ if __name__ == "__main__":
             print('Connection from:', addr)
             res = cur.execute(f"SELECT * FROM users WHERE TRIM(addr) = '{addr}' ").fetchone()
             if not res:
-                cur.execute(f"INSERT INTO users (addr, wins) VALUES ('{addr}', 0)")
+                cur.execute(f"INSERT INTO users (addr, wins, name) VALUES ('{addr}', 0, '')")
                 con.commit()
             get_sql_stat()
         except BlockingIOError:
@@ -479,41 +567,23 @@ if __name__ == "__main__":
         # ------------------------------------------------------
         # Игровая механика
         all_sprites.update()
-        for addr, player in srv_host.player_data.items():
-            for addr2, player2 in srv_host.player_data.items():
-                count = player.is_body_atak(player2)
-                if count > 0:
-                    if addr2 != addr:
-                        player2.add_segment(count, 1)
-                elif count < 0:
-                    player2.breake()
-                    continue
-                if addr2 == addr:
-                    continue
-                if player.is_head_to_head(player2):
-                    player.breake()
-                    continue
+        eat_sprites.update()
 
         # Проверка поедания корма
-        eat_sprites.update()
-        for addr, player in srv_host.player_data.items():
-            eat = player.eat_in_head()
-            if eat:
-                player.add_segment()
-                break
         if new_eat_counter == COUNT:
             new_eat_counter = 0
-            if len(eat_sprites) < EAT_COUNT:
-                Eat()
         new_eat_counter += 1
+        if len(eat_sprites) < EAT_COUNT:
+            Eat()
+            # print('EAT:', len(eat_sprites), EAT_COUNT)
+            # print('CNT:', len(srv_host.player_data))
 
         # Передача данных игрокам
         data = srv_host.prepare_to_send()
         try:
-            data = '#####' + json.dumps(data) + '%%%%%'
-            data = zlib.compress(data.encode())
+            data = json.dumps(data)
+            data = zlib.compress(data.encode('utf-8')) + b'0%%0%0%%0'
             packet_size = len(data)
-
         except Exception as err:
             print('Error prepare to send:', err)
         for sock in srv_host.player_sockets:
@@ -527,20 +597,35 @@ if __name__ == "__main__":
                 srv_host.check_click(event.pos)
             # if event.type == pygame.MOUSEMOTION:
             #     pygame.display.set_caption(f"{event.pos}")
+            if event.type == pygame.USEREVENT + 1100:
+                rnd_num = randint(0, srv_host.bots_counter - 1)
+                try:
+                    srv_host.player_data[f"bot{rnd_num:03}"].set_data({'key': rnd[random.randint(0, 3)]})
+                except:
+                    pass
+            if event.type == pygame.USEREVENT + 1200:
+                srv_host.super_speed = 1
 
         # Вывод статистики
         screen.fill(pygame.Color((0, 0, 127)))
         text = font.render(f"{'=' * 10} PLAYERS {'=' * 10}", ALIAS, 'yellow')
         screen.blit(text, (45, 50))
-        for i, (addr, player) in enumerate(srv_host.player_data.items()):
-            color = 'red' if addr == srv_host.last_winner[0] else 'yellow' if addr[:3] != 'bot' else 'gray'
-            text = font.render(f"{i + 1:02}: [{addr}] == Life: {player.get_life()}, Len: {player.get_length()}, "
-                               f"WINS: {win_stat.get(addr, ' ')}",
-                               ALIAS, color)
-            screen.blit(text, (45, 70 + i * 25))
+        i = 0
+        for (addr, player) in srv_host.player_data.items():
+            if srv_host.super_speed == 1:
+                player.super_speed = 1
+            if addr[:3] != 'bot':
+                color = 'red' if addr == srv_host.last_winner[0] else 'yellow' if addr[:3] != 'bot' else 'gray'
+                text = font.render(f"{i + 1:02}: [{win_stat.get(addr, [' ',player.user_name])[1]}] == LF: "
+                                   f"{player.get_life()}, LN: {player.get_length()}, "
+                                   f"WINS: {win_stat.get(addr, [' '])[0]}",
+                                   ALIAS, color)
+                screen.blit(text, (20, 70 + i * 25))
+                i += 1
+        srv_host.super_speed = 0
         screen.blit(texts[0], (S_WIDTH // 2 - texts[0].get_rect().width // 2, 5))
         screen.blit(texts[1], (460, 400))
-        text = font2.render(f"[{srv_host.last_winner[0]}] {srv_host.last_winner[1]}",
+        text = font2.render(f"[{srv_host.last_winner[2]}] {srv_host.last_winner[1]}",
                             ALIAS, 'green')
         screen.blit(text, (500, 450))
         game_time = srv_host.game_timer - srv_host.get_time_sec()
@@ -555,15 +640,16 @@ if __name__ == "__main__":
         screen.blit(text, (710, 200))
         screen.blit(texts[3], (500, 160))
         text = font2.render(f"- {srv_host.game_timer:03} +", ALIAS, 'orange')
-        screen.blit(text, (710,160))
+        screen.blit(text, (710, 160))
         screen.blit(texts[4], (500, 240))
-        text = font2.render(f"- {Const.data['STEP_WAIT']:01} +", ALIAS, 'orange')
+        text = font2.render(f"- {c_S_FPS:01} +", ALIAS, 'orange')
         screen.blit(text, (710, 240))
-        text = font2.render(f"Размер пакета: {10 * (packet_size // 10)}", ALIAS, 'red')
+        packet_size_0 = max([packet_size_0, packet_size])
+        text = font2.render(f"Размер пакета: {10 * (packet_size_0 // 10)}", ALIAS, 'red')
+        # text = font2.render(f"Размер пакета: {10 * (test_time // 10000000)}", ALIAS, 'red')
         screen.blit(text, (500, S_HEIGHT - 50))
 
         pygame.display.flip()
-        s_clock.tick(S_FPS)
 
         # Получаем данные от игроков
         addr = ''
@@ -579,6 +665,10 @@ if __name__ == "__main__":
                 except json.JSONDecodeError:
                     data = dict()
                 srv_host.player_data[addr].set_data(data)
+        # test_time = time.time_ns()
+        S_FPS = 10 + c_S_FPS * 10
+        s_clock.tick(S_FPS)
+        # test_time = time.time_ns() - test_time
 
     pygame.quit()
     sys.exit()
