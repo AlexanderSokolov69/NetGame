@@ -10,6 +10,7 @@ import zlib
 from random import choice
 import pygame
 
+from NetGame3.cl_color import Color
 from const import Const
 
 
@@ -81,6 +82,7 @@ class MainMenu:
         self.radius = 20
         self.step = 6
         self.pos = [self.step, 0]
+        self.color = Color().color
 
     def check_user_name(self):
         if not self.user_name:
@@ -109,6 +111,10 @@ class MainMenu:
                         self.pos = [0, -self.step]
                     if event.key in (pygame.K_DOWN, pygame.K_s):
                         self.pos = [0, self.step]
+                    if event.key == pygame.K_SPACE:
+                        self.color = Color().color
+                    if event.key == pygame.K_RETURN:
+                        return True
                     else:
                         try:
                             sym = chr(event.key)
@@ -144,7 +150,7 @@ class MainMenu:
     def draw_snake(self, scr: pygame.Surface):
         segment = (self.snake[0][0] + self.pos[0]) % width, (self.snake[0][1] + self.pos[1]) % height
         radius = self.radius
-        color = (0, 50, 0)
+        color = self.color
         cont = 0
         for i in range(len(self.snake)):
             if i % 3 == 0:
@@ -423,8 +429,9 @@ while game:
                             len_body = len(body)
                             surf = font_time.render(f"ДЛИНА: {len_body}", False, time_color)
                             screen.blit(surf, (width - surf.get_rect().width - 50, 120))
-                        # print(radius)
-                        color_r, color_g, color_b = player['color']
+                            color_r, color_g, color_b = menu.color
+                        else:
+                            color_r, color_g, color_b = player['color']
                         dr_color = (255 - color_r) // len_body
                         dg_color = (255 - color_g) // len_body
                         db_color = (255 - color_b) // len_body
