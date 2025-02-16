@@ -45,6 +45,7 @@ def load_config():
 pygame.init()
 S_SIZE = S_WIDTH, S_HEIGHT = 850, 550
 screen = pygame.display.set_mode(S_SIZE)
+pygame.display.set_caption(f'ЗМЕИНЫЕ ГОНКИ. {Const.VERSION} (сервер)')
 s_clock = pygame.time.Clock()
 S_FPS = 0
 EAT_COUNT = 0
@@ -223,7 +224,7 @@ class Player(MySprite):
                     self._pos[0] *= 2
                     self.super_speed = 0
                     self.breake()
-            if Network.num % 2:
+            if Network.num % 3 == 0:
                 sprites = all_sprites.copy()
                 sprites.remove(self)
                 if self.eat_in_head():
@@ -433,7 +434,7 @@ class Network:
         elif check_area(pos, self.rect_area['step_wait'][0]):
             c_S_FPS = max(0, c_S_FPS - 1)
         elif check_area(pos, self.rect_area['step_wait'][1]):
-            c_S_FPS = min(9, c_S_FPS + 1)
+            c_S_FPS = min(8, c_S_FPS + 1)
 
     def prepare_to_send(self):
         data = dict()
