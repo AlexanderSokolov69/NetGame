@@ -347,20 +347,20 @@ while game:
                         surf = font_time.render(tm_winner, False, time_color)
                         screen.blit(surf, (50, height - 100))
 
-                    # dr = 255 / (Const.WIDTH // 50)
-                    # dg = 255 / (Const.HEIGHT // 50)
-                    #
-                    # r = 0
-                    # g = 0
-                    # b = 100
-                    # for x in range(0, Const.WIDTH, 50):
-                    #     g = 0
-                    #     for y in range(0, Const.HEIGHT, 50):
-                    #         pos = camera.shift((x + 22, y + 22))
-                    #         if 0 <= pos[0] <= width and 0 <= pos[1] <= height:
-                    #             pygame.draw.rect(screen, (int(r), int(g), random.randint(100, 255)), (*pos, 6, 6), 1)
-                    #         g = g + dg
-                    #     r = r + dr
+                    dr = 255 / (Const.WIDTH // 50)
+                    dg = 255 / (Const.HEIGHT // 50)
+
+                    r = 0
+                    g = 0
+                    b = 100
+                    for x in range(0, Const.WIDTH, 50):
+                        g = 0
+                        for y in range(0, Const.HEIGHT, 50):
+                            pos = camera.shift((x + 22, y + 22))
+                            if 0 <= pos[0] <= width and 0 <= pos[1] <= height:
+                                pygame.draw.rect(screen, (int(r), int(g), 200), (*pos, 6, 6), 3)
+                            g = g + dg
+                        r = r + dr
                     try:
                         my_pos = data['players'][my_addr]['body'][0]
                     except Exception as e:
