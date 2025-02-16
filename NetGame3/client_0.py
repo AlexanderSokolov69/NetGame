@@ -10,6 +10,7 @@ import zlib
 from random import choice
 import pygame
 
+from NetGame3.cl_color import Color
 from const import Const
 
 
@@ -28,14 +29,15 @@ DATA_WIND = Const.data['DATA_WIND']
 SIZE_MUL = 2
 l_text, h_text, step_text = 200, 200, 70
 background = pygame.Color((0, 50, 0))
+time_color = pygame.Color((10, 80, 10))
 pygame.init()
 size = width, height = 1400, 900
 if FULLSCREEN:
-    screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
+    screen = pygame.display.set_mode(size, pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF)
 else:
-    screen = pygame.display.set_mode(size)
+    screen = pygame.display.set_mode(size, pygame.HWSURFACE | pygame.DOUBLEBUF)
 clock = pygame.time.Clock()
-FPS = 40
+pygame.display.set_caption(f'ЗМЕИНЫЕ ГОНКИ. {Const.VERSION} (клиент)')
 
 
 def load_image(name, colorkey=None):
@@ -76,6 +78,11 @@ class MainMenu:
             rect = rect.move(l_text, h_text + i * step_text)
             self.text_rect.append(rect)
         # print(self.text_rect)
+        self.snake = [[width // 2, height // 2 + 70] for _ in range(60)]
+        self.radius = 20
+        self.step = 6
+        self.pos = [self.step, 0]
+        self.color = Color().color
 
     def check_user_name(self):
         if not self.user_name:
@@ -84,6 +91,7 @@ class MainMenu:
     def exec(self, scr: pygame.Surface):
         mouse_pos = 0, 0
         click = False
+        m_clock = pygame.time.Clock()
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -95,6 +103,18 @@ class MainMenu:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_BACKSPACE:
                         self.user_name = self.user_name[:-1]
+                    if event.key in (pygame.K_LEFT, pygame.K_a):
+                        self.pos = [-self.step, 0]
+                    if event.key in (pygame.K_RIGHT, pygame.K_d):
+                        self.pos = [self.step, 0]
+                    if event.key in (pygame.K_UP, pygame.K_w):
+                        self.pos = [0, -self.step]
+                    if event.key in (pygame.K_DOWN, pygame.K_s):
+                        self.pos = [0, self.step]
+                    if event.key == pygame.K_SPACE:
+                        self.color = Color().color
+                    if event.key == pygame.K_RETURN:
+                        return True
                     else:
                         try:
                             sym = chr(event.key)
@@ -105,6 +125,7 @@ class MainMenu:
 
             scr.fill('black')
             scr.blit(self.image, (0, 0))
+            self.draw_snake(scr)
             scr.blit(self.image_cobra, (width - 650, height - 600))
             lx = width // 2 - self.title.get_rect().width // 2
             scr.blit(self.title, (lx, 50))
@@ -124,6 +145,24 @@ class MainMenu:
             surf_user_name = self.font.render(f"NikName: {self.user_name}", True, 'black')
             scr.blit(surf_user_name, (610, 150))
             pygame.display.flip()
+            m_clock.tick(60)
+
+    def draw_snake(self, scr: pygame.Surface):
+        segment = (self.snake[0][0] + self.pos[0]) % width, (self.snake[0][1] + self.pos[1]) % height
+        radius = self.radius
+        color = self.color
+        cont = 0
+        for i in range(len(self.snake)):
+            if i % 3 == 0:
+                pygame.draw.circle(scr, color, self.snake[i], radius, cont)
+            if i == 0:
+                pygame.draw.circle(scr, 'lightgreen', self.snake[i], radius - 10, cont)
+            radius = max(8, radius // 1.04)
+            color = (min(255, color[0] + 4),
+                     min(255, color[1] + 4),
+                     min(255, color[2] + 4))
+            self.snake[i], segment = segment, self.snake[i]
+            cont = 4
 
 
 class Camera:
@@ -177,6 +216,7 @@ sound_eat = pygame.mixer.Sound('data/eat.ogg')
 sound_ataka = pygame.mixer.Sound('data/brake.ogg')
 
 font_win = pygame.font.Font('data/Capsmall.ttf', 50)
+font_time = pygame.font.Font('data/Capsmall.ttf', 80)
 img_list = [load_image('snake.png'), load_image('snake2.png'),
             load_image('snake3.png'), load_image('snake4.png')]
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
@@ -238,13 +278,17 @@ def play_sound(sound: str, addr=''):
         sound_ataka.play()
 
 
+def delta_pos(pos0: list[int, int], pos1: list[int, int]):
+    return max(abs(pos0[0] - pos1[0]), abs(pos0[1] - pos1[1]))
+
+
 play_sound('eat')
 game = True
 menu = MainMenu()
 s_head = SnakeHead()
 convert_error = True
-tm_winner = ''
 packet_number = 0
+tm_winner = ''
 while game:
     camera = Camera(0, 0)
     my_pos = [0, 0]
@@ -259,7 +303,7 @@ while game:
             print(' ADDR:', my_addr)
             flag = game
             end_clr = [255, 255, 255]
-
+            len_body = 0
             while flag:
                 cmd = {'key': [], 'name': menu.user_name}
                 for event in pygame.event.get():
@@ -267,7 +311,6 @@ while game:
                         flag = False
                     if event.type == (pygame.USEREVENT + 1000):
                         tm_winner = ''
-                        print('event')
                         break
                     # if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     #     flag = False
@@ -326,11 +369,13 @@ while game:
                 if convert_error:
                     winner = data.get('WINNER', '')
                     if winner:
-                        print('Победитель:', winner)
-                        tm_winner = f"Победитель: {winner}"
-                        pygame.time.set_timer(pygame.USEREVENT + 1000, 4000, 1)
+                        # print('Победитель:', winner)
+                        if not tm_winner:
+                            pygame.time.set_timer(pygame.USEREVENT + 1000, 5000, 1)
+                            print('Победитель:', winner)
+                            tm_winner = f"Победитель: {winner}"
                     tm = data.get('TIMER', 999)
-                    pygame.display.set_caption(f"До конца раунда осталось: {tm} секунд...")
+                    # pygame.display.set_caption(f"До конца раунда осталось: {tm} секунд...")
                     if tm < 2 or tm == 999:
                         screen.fill(pygame.Color(end_clr))
                         end_clr = max(0, end_clr[0] - 6), max(0, end_clr[1] - 4), max(0, end_clr[2] - 6)
@@ -338,6 +383,13 @@ while game:
                         end_clr = [250, 255, 250]
                         screen.fill(background)
 
+                    surf = font_time.render(f"ТАЙМЕР: {tm}", False, time_color)
+                    screen.blit(surf, (60, 20))
+                    if tm_winner:
+                        surf = font_time.render(tm_winner, False, time_color)
+                        screen.blit(surf, (width // 2 - surf.get_rect().width // 2, height - 100))
+                    surf = font_time.render(menu.user_name, False, time_color)
+                    screen.blit(surf, (width - surf.get_rect().width - 50, 20))
                     # dr = 255 / (Const.WIDTH // 50)
                     # dg = 255 / (Const.HEIGHT // 50)
                     #
@@ -349,7 +401,7 @@ while game:
                     #     for y in range(0, Const.HEIGHT, 50):
                     #         pos = camera.shift((x + 22, y + 22))
                     #         if 0 <= pos[0] <= width and 0 <= pos[1] <= height:
-                    #             pygame.draw.rect(screen, (int(r), int(g), random.randint(100, 255)), (*pos, 6, 6), 1)
+                    #             pygame.draw.rect(screen, (int(r), int(g), 200), (*pos, 6, 6), 3)
                     #         g = g + dg
                     #     r = r + dr
                     try:
@@ -365,6 +417,7 @@ while game:
                         sound = player.get('sound', '')
                         if sound:
                             play_sound(sound, addr)
+                        breake = player['breake']
                         body = player['body']
                         figure = player['figure']
                         len_body = len(body)
@@ -372,14 +425,21 @@ while game:
                         hero_life = player['life']
                         radius = player['radius']
                         my_head = addr == my_addr
-                        # print(radius)
-                        color_r, color_g, color_b = player['color']
+                        if my_head:
+                            len_body = len(body)
+                            surf = font_time.render(f"ДЛИНА: {len_body}", False, time_color)
+                            screen.blit(surf, (width - surf.get_rect().width - 50, 120))
+                            color_r, color_g, color_b = menu.color
+                        else:
+                            color_r, color_g, color_b = player['color']
                         dr_color = (255 - color_r) // len_body
                         dg_color = (255 - color_g) // len_body
                         db_color = (255 - color_b) // len_body
                         txt_pos = [0, 0]
                         contour = 0
-                        img, rect, *shift = s_head.get_head(body, camera.shift(body[0]), radius, addr)
+                        img, rect, *shift = s_head.get_head(body,
+                                                            camera.shift(body[0]), radius, addr)
+                        pre_pos = (0, 0)
                         for i, pos in enumerate(body):
                             pos = camera.shift(pos)
                             # if 0 <= pos[0] <= width and 0 <= pos[1] <= height:
@@ -397,32 +457,37 @@ while game:
                                     div = min(2, len(body))
                                     color = (color_r // div, color_g // div, color_b // div)
                                     radius -= 4
-                                    # if my_head:
-                                    #     pygame.draw.circle(screen, 'red', pos, _radius + 2, 2)
+                                    if breake > 0:
+                                        b_color = (min(255, breake * 20), min(255, breake * 4), min(255, breake * 4))
+                                        pygame.draw.circle(screen, b_color,
+                                                           pos, _radius + 4, 8)
                                     if len(body) == 1:
-                                        pygame.draw.circle(screen, color, pos, _radius, contour)
+                                        pygame.draw.circle(screen, color,
+                                                           pos, _radius, contour)
                                     #
                                     #     pygame.draw.circle(screen, 'white', pos, _radius)
                                     # else:
                                     if not img:
-                                        pygame.draw.circle(screen, color, pos, _radius, contour)
+                                        pygame.draw.circle(screen, color,
+                                                           pos, _radius, contour)
+                                    pre_pos = pos
+                                    contour = 3
                                 else:
                                     color = (color_r + dr_color * i,
                                              color_g + dg_color * i,
                                              color_b + db_color * i)
-                                    radius = max(3, radius / 1.1)
-                                    pygame.draw.circle(screen, color, pos, _radius, contour)
-                                    contour = 6
+                                    radius = max(5, radius / 1.1)
+                                    if delta_pos(pre_pos, pos) >= radius // 2:
+                                        pygame.draw.circle(screen, color,
+                                                           pos, _radius, contour)
+                                        pre_pos = pos
                             # pygame.draw.circle(screen, color, pos, _radius + 2)
                             if img:
                                 screen.blit(img, rect)
                                 screen.blit(surf_0, (rect[0] + shift[0], rect[1] + shift[1]))
-                            if tm_winner:
-                                surf = font.render(tm_winner, False, 'white')
-                                screen.blit(surf, (50, 50))
                 else:
                     screen.fill(background)
-                pygame.display.flip()
+                pygame.display.update()
                 # clock.tick(FPS)
     except ConnectionResetError:
         print('Try reconnect')
