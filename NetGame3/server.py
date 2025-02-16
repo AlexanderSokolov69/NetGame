@@ -194,7 +194,7 @@ class Player(MySprite):
         if self._break <= 0:
             self._pos[0] = 0 if self._pos[0] == 0 else math.copysign(self._step, self._pos[0])
             self._pos[1] = 0 if self._pos[1] == 0 else math.copysign(self._step, self._pos[1])
-            cmd = self._data.get('key', [])
+            cmd = self._data.get('key', "")
             pos = self._data.get('pos', [])
             # if pos:
             #     self.move_head([pos[0] - self._body[0][0], pos[1] - self._body[0][1]])
@@ -393,6 +393,7 @@ class Network:
         self.clients = []
         self.player_sockets = []
         self.player_data = dict()
+        self._buff = dict()
         # self.eat_data = []
         self.main_socket = self.init_socket()
         self.game_time = datetime.datetime.now()
@@ -512,10 +513,10 @@ class Network:
             if addr[0] != 'b':
                 self.player_data[addr] = Player()
 
-    def handle(self, sock: socket.socket) -> any:
-        data = None
+    def handle(self, sock: socket.socket, addr: str) -> any:
+        buff = self._buff.get(addr, b'')
         try:
-            data = msgpack.unpackb(zlib.decompress(sock.recv(DATA_WIND)))  # Should be ready
+            buff += sock.recv(DATA_WIND)
         except ConnectionError:
             print(f"Client suddenly closed while receiving {sock}")
             return None
@@ -523,6 +524,15 @@ class Network:
             pass
         except Exception as e:
             print('Receive error:', e)
+        i_data = dict()
+        while (pos := buff.find(b'0%%0%0%%0')) >= 0:
+            i_data = buff[:pos]
+            buff = buff[pos + 9:]
+        self._buff[addr] = buff
+        try:
+            data = msgpack.unpackb(zlib.decompress(i_data))  # Should be ready
+        except:
+            data = dict()
         return data
 
     def send_data(self, sock, data):
@@ -660,14 +670,13 @@ if __name__ == "__main__":
         for sock in srv_host.player_sockets.copy():
             if 'raddr' not in sock.__repr__():
                 continue
-            addr = sock.getpeername()
-            addr = addr[0]
-            data = srv_host.handle(sock)
+            addr = sock.getpeername()[0]
+            data = srv_host.handle(sock, addr)
             if data:
-                try:
-                    data = json.loads(data)
-                except json.JSONDecodeError:
-                    data = dict()
+                # try:
+                #     data = json.loads(data)
+                # except json.JSONDecodeError:
+                #     data = dict()
                 srv_host.player_data[addr].set_data(data)
         # test_time = time.time_ns()
         S_FPS = 10 + c_S_FPS * 10

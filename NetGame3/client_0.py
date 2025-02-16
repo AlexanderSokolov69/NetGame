@@ -160,7 +160,7 @@ class Camera:
         self.q_len = 30
         self._window = 0
 
-    def move(self, new_x, new_y, number=0):
+    def move(self, new_x, new_y):
         if self._x - new_x > self._window:
             self._x = new_x + self._window
         elif new_x - self._x > self._window:
@@ -303,6 +303,7 @@ while game:
                         break
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         cmd['pos'] = event.pos
+
                 keys = pygame.key.get_pressed()
                 if any(keys):
                     if keys[pygame.K_LEFT] or keys[pygame.K_a]:
@@ -317,9 +318,9 @@ while game:
                         cmd['key'] = ["stop"]
                     if keys[pygame.K_ESCAPE]:
                         flag = False
-                st = json.dumps(cmd)
+                # st = json.dumps(cmd)
                 try:
-                    s.sendall(zlib.compress(msgpack.packb(st)))
+                    s.sendall(zlib.compress(msgpack.packb(cmd)) + b'0%%0%0%%0')
                 except Exception as err:
                     print('Error of send:', err)
                 try:
@@ -333,12 +334,12 @@ while game:
                     buff = buff[pos + 9:]
                     try:
                         data: dict[tuple[list, int, int, int, int]] = msgpack.unpackb(zlib.decompress(i_data))
-                        n = data['NUMBER']
-                        if packet_number < n or n == 0:
-                            convert_error = True
-                            packet_number = n
-                        else:
-                            convert_error = False
+                        # n = data['NUMBER']
+                        # if packet_number < n or n == 0:
+                        convert_error = True
+                        # packet_number = n
+                        # else:
+                        #     convert_error = False
                         Const.WIDTH, Const.HEIGHT = data.get('AREA_SIZE', [Const.WIDTH, Const.HEIGHT])
                     except json.JSONDecodeError:
                         print('JSON convert error.', data)
@@ -383,7 +384,7 @@ while game:
                         screen.blit(surf, (width // 2 - surf.get_rect().width // 2, height - 100))
                     surf = font_time.render(menu.user_name, False, time_color)
                     screen.blit(surf, (width - surf.get_rect().width - 50, 20))
-                    camera.move(*my_pos, data.get('NUMBER', 0))
+                    camera.move(*my_pos)
                     for eat in data.get('eats', []):
                         # pos, radius, color
                         pos = camera.shift(eat[0][0])
