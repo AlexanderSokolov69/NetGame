@@ -31,7 +31,6 @@ def load_config():
             Const.data['HOST'] = s_host
         Const.data['GAME_TIMER'] = int(data.get('GAME_TIMER', Const.data['GAME_TIMER']))
         Const.data['BOTS_COUNTER'] = int(data.get('BOTS_COUNTER', Const.data['BOTS_COUNTER']))
-        Const.data['STEP_WAIT'] = int(data.get('STEP_WAIT', Const.data['STEP_WAIT']))
         Const.data['DATA_WIND'] = int(data.get('DATA_WIND', Const.data['DATA_WIND']))
         Const.data['CHAOS'] = int(data.get('CHAOS', Const.data['CHAOS']))
         S_FPS = int(data.get('S_FPS', 100))
@@ -180,8 +179,6 @@ class Player(MySprite):
         self._data = dict()
         self._data_out = dict()
         self._step = STEP
-        self._iter = 0
-        self._wait = Const.data['STEP_WAIT']
         self._figure = 0
         self._break = 0
         self._life = Const.START_LIFE
@@ -223,7 +220,7 @@ class Player(MySprite):
                     self._pos[0] *= 2
                     self.super_speed = 0
                     self.breake()
-            if Network.num % 4 == 0:
+            if Network.num % 2:
                 sprites = all_sprites.copy()
                 sprites.remove(self)
                 if self.eat_in_head():
@@ -233,10 +230,7 @@ class Player(MySprite):
         else:
             self._break -= 1
         self._data['key'] = None
-        self._iter += 1
-        if self._iter > self._wait:
-            self._iter = 0
-            self.move()
+        self.move()
 
     def is_body_atak(self, sprites):
         if self.is_break():
@@ -365,9 +359,9 @@ class Player(MySprite):
         self.breake()
 
     def breake(self):
-        # if self._break > 0:
-        #     return
-        self._break = max([40, len(self._body) // 2 + RADIUS])
+        if self.is_break():
+            return
+        self._break = max(RADIUS, self.get_length() // 2)
         self._data_out['sound'] = 'break'
 
     def add_data(self, rec: dict):
@@ -392,7 +386,6 @@ class Network:
         self.last_winner = ('', 0, '')
         self.bots_counter = Const.data['BOTS_COUNTER']
         self.game_timer = Const.data['GAME_TIMER']
-        # self.step_wait = Const.data['STEP_WAIT']
         self.rect_area = {'game_timer': [pygame.Rect(710, 170, 15, 15), pygame.Rect(770, 170, 20, 15)],
                           'bots_counter': [pygame.Rect(710, 210, 15, 15), pygame.Rect(760, 210, 20, 15)],
                           'step_wait': [pygame.Rect(710, 250, 15, 15), pygame.Rect(750, 250, 20, 15)]
@@ -400,6 +393,7 @@ class Network:
         self.reset_game()
 
     def check_click(self, pos):
+        global c_S_FPS
         def check_area(pos: list[int, int], rect: pygame.Rect):
             return rect.collidepoint(pos)
 
@@ -412,9 +406,9 @@ class Network:
         elif check_area(pos, self.rect_area['game_timer'][1]):
             self.game_timer = min(600, self.game_timer + 10)
         elif check_area(pos, self.rect_area['step_wait'][0]):
-            Const.data['STEP_WAIT'] = max(0, Const.data['STEP_WAIT'] - 1)
+            c_S_FPS = max(0, c_S_FPS - 1)
         elif check_area(pos, self.rect_area['step_wait'][1]):
-            Const.data['STEP_WAIT'] = min(15, Const.data['STEP_WAIT'] + 1)
+            c_S_FPS = min(9, c_S_FPS + 1)
 
     def prepare_to_send(self):
         data = dict()
@@ -525,6 +519,7 @@ class Network:
 
 
 if __name__ == "__main__":
+    c_S_FPS = max(0, S_FPS // 10 - 1)
     packet_size_0 = 0
     srv_host = Network()
     texts = [font2.render(f"{hostname} IP: {HOST} PORT: {Const.data['PORT']}", True, 'red'),
@@ -635,7 +630,7 @@ if __name__ == "__main__":
         text = font2.render(f"- {srv_host.game_timer:03} +", ALIAS, 'orange')
         screen.blit(text, (710, 160))
         screen.blit(texts[4], (500, 240))
-        text = font2.render(f"- {Const.data['STEP_WAIT']:01} +", ALIAS, 'orange')
+        text = font2.render(f"- {c_S_FPS:01} +", ALIAS, 'orange')
         screen.blit(text, (710, 240))
         packet_size_0 = max([packet_size_0, packet_size])
         text = font2.render(f"Размер пакета: {10 * (packet_size_0 // 10)}", ALIAS, 'red')
@@ -659,6 +654,7 @@ if __name__ == "__main__":
                     data = dict()
                 srv_host.player_data[addr].set_data(data)
         # test_time = time.time_ns()
+        S_FPS = 10 + c_S_FPS * 10
         s_clock.tick(S_FPS)
         # test_time = time.time_ns() - test_time
 
