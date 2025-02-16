@@ -270,12 +270,15 @@ class SnakeHead:
 def play_sound(sound: str, addr=''):
     if addr != my_addr:
         return
-    if 'break' in sound:
-        sound_brake.play()
-    elif 'eat' in sound:
-        sound_eat.play()
-    elif 'ataka' in sound:
-        sound_ataka.play()
+    try:
+        if 'break' in sound:
+            sound_brake.play()
+        elif 'eat' in sound:
+            sound_eat.play()
+        elif 'ataka' in sound:
+            sound_ataka.play()
+    except:
+        pass
 
 
 def delta_pos(pos0: list[int, int], pos1: list[int, int]):
@@ -304,6 +307,7 @@ while game:
             flag = game
             end_clr = [255, 255, 255]
             len_body = 0
+            old_data = dict()
             while flag:
                 cmd = {'key': [], 'name': menu.user_name}
                 for event in pygame.event.get():
@@ -312,8 +316,6 @@ while game:
                     if event.type == (pygame.USEREVENT + 1000):
                         tm_winner = ''
                         break
-                    # if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    #     flag = False
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         cmd['pos'] = event.pos
                 keys = pygame.key.get_pressed()
@@ -340,10 +342,6 @@ while game:
                     # print(buff)
                 except Exception as err:
                     print('Error of receive:', err)
-                if isinstance(data, dict):
-                    old_data = data.copy()
-                else:
-                    old_data = dict()
                 data = dict()
                 while (pos := buff.find(b'0%%0%0%%0')) >= 0:
                     data = buff[:pos]
@@ -366,6 +364,17 @@ while game:
                         convert_error = False
                         continue
 
+                try:
+                    my_pos = data['players'][my_addr]['body'][0]
+                    old_data = data
+                    gud_packets = True
+                except Exception as e:
+                    gud_packets = False
+                    # print('GET POS ==>', e)
+                    if old_data.get('players', None):
+                        data = old_data
+                        my_pos = data['players'][my_addr]['body'][0]
+                        convert_error = True
                 if convert_error:
                     winner = data.get('WINNER', '')
                     if winner:
@@ -375,8 +384,7 @@ while game:
                             print('Победитель:', winner)
                             tm_winner = f"Победитель: {winner}"
                     tm = data.get('TIMER', 999)
-                    # pygame.display.set_caption(f"До конца раунда осталось: {tm} секунд...")
-                    if tm < 2 or tm == 999:
+                    if tm < 2:
                         screen.fill(pygame.Color(end_clr))
                         end_clr = max(0, end_clr[0] - 6), max(0, end_clr[1] - 4), max(0, end_clr[2] - 6)
                     else:
@@ -390,26 +398,6 @@ while game:
                         screen.blit(surf, (width // 2 - surf.get_rect().width // 2, height - 100))
                     surf = font_time.render(menu.user_name, False, time_color)
                     screen.blit(surf, (width - surf.get_rect().width - 50, 20))
-                    # dr = 255 / (Const.WIDTH // 50)
-                    # dg = 255 / (Const.HEIGHT // 50)
-                    #
-                    # r = 0
-                    # g = 0
-                    # b = 100
-                    # for x in range(0, Const.WIDTH, 50):
-                    #     g = 0
-                    #     for y in range(0, Const.HEIGHT, 50):
-                    #         pos = camera.shift((x + 22, y + 22))
-                    #         if 0 <= pos[0] <= width and 0 <= pos[1] <= height:
-                    #             pygame.draw.rect(screen, (int(r), int(g), 200), (*pos, 6, 6), 3)
-                    #         g = g + dg
-                    #     r = r + dr
-                    try:
-                        my_pos = data['players'][my_addr]['body'][0]
-                    except Exception as e:
-                        print('GET POS ==>', e)
-                        data = old_data
-                        # my_pos = data['players'][my_addr]['body'][0]
                     camera.move(*my_pos, data.get('NUMBER', 0))
 
                     for addr, player in data.get('players', dict()).items():
@@ -442,53 +430,45 @@ while game:
                         pre_pos = (0, 0)
                         for i, pos in enumerate(body):
                             pos = camera.shift(pos)
-                            # if 0 <= pos[0] <= width and 0 <= pos[1] <= height:
-                            if True:
-                                # surf_1 = font.render(f"{hero_length}", False,
-                                #                      'lightblue', background)
-                                surf_0 = font.render(f"{hero_life}", False,
-                                                     'pink', background)
-                                # screen.blit(surf_0, (txt_pos[0], txt_pos[1]))
-                                # screen.blit(surf_1, (txt_pos[0] + 10, txt_pos[1]))
-
-                                _radius = radius
-                                if i == 0:
-                                    txt_pos = pos
-                                    div = min(2, len(body))
-                                    color = (color_r // div, color_g // div, color_b // div)
-                                    radius -= 4
-                                    if breake > 0:
-                                        b_color = (min(255, breake * 20), min(255, breake * 4), min(255, breake * 4))
-                                        pygame.draw.circle(screen, b_color,
-                                                           pos, _radius + 4, 8)
-                                    if len(body) == 1:
-                                        pygame.draw.circle(screen, color,
-                                                           pos, _radius, contour)
-                                    #
-                                    #     pygame.draw.circle(screen, 'white', pos, _radius)
-                                    # else:
-                                    if not img:
-                                        pygame.draw.circle(screen, color,
-                                                           pos, _radius, contour)
+                            surf_0 = font.render(f"{hero_life}", False,
+                                                 'pink', background)
+                            _radius = radius
+                            if i == 0:
+                                txt_pos = pos
+                                div = min(2, len(body))
+                                color = (color_r // div, color_g // div, color_b // div)
+                                radius -= 4
+                                if breake > 0:
+                                    b_color = (min(255, breake * 20), min(255, breake * 4), min(255, breake * 4))
+                                    pygame.draw.circle(screen, b_color,
+                                                       pos, _radius + 4, 8)
+                                if len(body) == 1:
+                                    pygame.draw.circle(screen, color,
+                                                       pos, _radius, contour)
+                                if not img:
+                                    pygame.draw.circle(screen, color,
+                                                       pos, _radius, contour)
+                                pre_pos = pos
+                                contour = 3
+                            else:
+                                color = (color_r + dr_color * i,
+                                         color_g + dg_color * i,
+                                         color_b + db_color * i)
+                                radius = max(5, radius / 1.1)
+                                if delta_pos(pre_pos, pos) >= radius // 2:
+                                    pygame.draw.circle(screen, color,
+                                                       pos, _radius, contour)
                                     pre_pos = pos
-                                    contour = 3
-                                else:
-                                    color = (color_r + dr_color * i,
-                                             color_g + dg_color * i,
-                                             color_b + db_color * i)
-                                    radius = max(5, radius / 1.1)
-                                    if delta_pos(pre_pos, pos) >= radius // 2:
-                                        pygame.draw.circle(screen, color,
-                                                           pos, _radius, contour)
-                                        pre_pos = pos
-                            # pygame.draw.circle(screen, color, pos, _radius + 2)
                             if img:
                                 screen.blit(img, rect)
                                 screen.blit(surf_0, (rect[0] + shift[0], rect[1] + shift[1]))
                 else:
                     screen.fill(background)
+                if gud_packets:
+                    pygame.draw.circle(screen, 'green', (20, 20), 5, 2)
+                else:
+                    pygame.draw.circle(screen, 'red', (20, 20), 5, 2)
                 pygame.display.update()
-                # clock.tick(FPS)
     except ConnectionResetError:
         print('Try reconnect')
         continue

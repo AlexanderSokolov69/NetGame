@@ -55,7 +55,10 @@ ALIAS = False
 # font = pygame.font.Font('data/Pressdarling.ttf', size=20)
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
 font2 = pygame.font.Font('data/Capsmall.ttf', size=25)
-ten_sound = pygame.mixer.Sound('data/ten_second.ogg')
+try:
+    ten_sound = pygame.mixer.Sound('data/ten_second.ogg')
+except:
+    ten_sound = None
 
 hostname = socket.gethostname()
 HOST = socket.gethostbyname(hostname)
@@ -406,6 +409,7 @@ class Network:
 
     def check_click(self, pos):
         global c_S_FPS
+
         def check_area(pos: list[int, int], rect: pygame.Rect):
             return rect.collidepoint(pos)
 
@@ -443,10 +447,10 @@ class Network:
     def init_socket(self):
         main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         main_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        main_socket.bind((HOST, Const.data['PORT']))
+        main_socket.bind((Const.data['HOST'], Const.data['PORT']))
         main_socket.setblocking(False)
         main_socket.listen(1)
-        print('Server started at:', HOST, Const.data['PORT'])
+        print('Server started at:', f"{Const.data['HOST']}:{Const.data['PORT']}")
         return main_socket
 
     def init_game(self):
@@ -534,7 +538,7 @@ if __name__ == "__main__":
     c_S_FPS = max(0, S_FPS // 10 - 1)
     packet_size_0 = 0
     srv_host = Network()
-    texts = [font2.render(f"{hostname} IP: {HOST} PORT: {Const.data['PORT']}", True, 'red'),
+    texts = [font2.render(f"{hostname} IP: {Const.data['HOST']} PORT: {Const.data['PORT']}", True, 'red'),
              font2.render("Последний победитель:", True, 'green'),
              font2.render('Ботов в игре:', True, 'orange'),
              font2.render('Длина тайма:', True, 'orange'),
@@ -630,8 +634,9 @@ if __name__ == "__main__":
         screen.blit(text, (500, 450))
         game_time = srv_host.game_timer - srv_host.get_time_sec()
         if game_time <= 10 and not srv_host.sound_on:
-            srv_host.sound_on = True
-            ten_sound.play()
+            if ten_sound:
+                srv_host.sound_on = True
+                ten_sound.play()
         text = font2.render(f"Timer: {game_time} сек",
                             ALIAS, 'green')
         screen.blit(text, (560, 80))
