@@ -32,9 +32,9 @@ time_color = pygame.Color((10, 80, 10))
 pygame.init()
 size = width, height = 1400, 900
 if FULLSCREEN:
-    screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
+    screen = pygame.display.set_mode(size, pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF)
 else:
-    screen = pygame.display.set_mode(size)
+    screen = pygame.display.set_mode(size, pygame.HWSURFACE | pygame.DOUBLEBUF)
 clock = pygame.time.Clock()
 FPS = 40
 
@@ -240,6 +240,10 @@ def play_sound(sound: str, addr=''):
         sound_ataka.play()
 
 
+def delta_pos(pos0: list[int, int], pos1: list[int, int]):
+    return max(abs(pos0[0] - pos1[0]), abs(pos0[1] - pos1[1]))
+
+
 play_sound('eat')
 game = True
 menu = MainMenu()
@@ -345,22 +349,23 @@ while game:
                     screen.blit(surf, (60, 20))
                     if tm_winner:
                         surf = font_time.render(tm_winner, False, time_color)
-                        screen.blit(surf, (50, height - 100))
-
-                    dr = 255 / (Const.WIDTH // 50)
-                    dg = 255 / (Const.HEIGHT // 50)
-
-                    r = 0
-                    g = 0
-                    b = 100
-                    for x in range(0, Const.WIDTH, 50):
-                        g = 0
-                        for y in range(0, Const.HEIGHT, 50):
-                            pos = camera.shift((x + 22, y + 22))
-                            if 0 <= pos[0] <= width and 0 <= pos[1] <= height:
-                                pygame.draw.rect(screen, (int(r), int(g), 200), (*pos, 6, 6), 3)
-                            g = g + dg
-                        r = r + dr
+                        screen.blit(surf, (width // 2 - surf.get_rect().width // 2, height - 100))
+                    surf = font_time.render(menu.user_name, False, time_color)
+                    screen.blit(surf, (width - surf.get_rect().width - 50, 20))
+                    # dr = 255 / (Const.WIDTH // 50)
+                    # dg = 255 / (Const.HEIGHT // 50)
+                    #
+                    # r = 0
+                    # g = 0
+                    # b = 100
+                    # for x in range(0, Const.WIDTH, 50):
+                    #     g = 0
+                    #     for y in range(0, Const.HEIGHT, 50):
+                    #         pos = camera.shift((x + 22, y + 22))
+                    #         if 0 <= pos[0] <= width and 0 <= pos[1] <= height:
+                    #             pygame.draw.rect(screen, (int(r), int(g), 200), (*pos, 6, 6), 3)
+                    #         g = g + dg
+                    #     r = r + dr
                     try:
                         my_pos = data['players'][my_addr]['body'][0]
                     except Exception as e:
@@ -374,6 +379,7 @@ while game:
                         sound = player.get('sound', '')
                         if sound:
                             play_sound(sound, addr)
+                        breake = player['breake']
                         body = player['body']
                         figure = player['figure']
                         len_body = len(body)
@@ -388,7 +394,9 @@ while game:
                         db_color = (255 - color_b) // len_body
                         txt_pos = [0, 0]
                         contour = 0
-                        img, rect, *shift = s_head.get_head(body, camera.shift(body[0]), radius, addr)
+                        img, rect, *shift = s_head.get_head(body,
+                                                            camera.shift(body[0]), radius, addr)
+                        pre_pos = (0, 0)
                         for i, pos in enumerate(body):
                             pos = camera.shift(pos)
                             # if 0 <= pos[0] <= width and 0 <= pos[1] <= height:
@@ -406,29 +414,37 @@ while game:
                                     div = min(2, len(body))
                                     color = (color_r // div, color_g // div, color_b // div)
                                     radius -= 4
-                                    # if my_head:
-                                    #     pygame.draw.circle(screen, 'red', pos, _radius + 2, 2)
+                                    if breake > 0:
+                                        b_color = (min(255, breake * 20), min(255, breake * 4), min(255, breake * 4))
+                                        pygame.draw.circle(screen, b_color,
+                                                           pos, _radius + 4, 8)
                                     if len(body) == 1:
-                                        pygame.draw.circle(screen, color, pos, _radius, contour)
+                                        pygame.draw.circle(screen, color,
+                                                           pos, _radius, contour)
                                     #
                                     #     pygame.draw.circle(screen, 'white', pos, _radius)
                                     # else:
                                     if not img:
-                                        pygame.draw.circle(screen, color, pos, _radius, contour)
+                                        pygame.draw.circle(screen, color,
+                                                           pos, _radius, contour)
+                                    pre_pos = pos
+                                    contour = 3
                                 else:
                                     color = (color_r + dr_color * i,
                                              color_g + dg_color * i,
                                              color_b + db_color * i)
-                                    radius = max(3, radius / 1.1)
-                                    pygame.draw.circle(screen, color, pos, _radius, contour)
-                                    contour = 6
+                                    radius = max(5, radius / 1.1)
+                                    if delta_pos(pre_pos, pos) >= radius // 2:
+                                        pygame.draw.circle(screen, color,
+                                                           pos, _radius, contour)
+                                        pre_pos = pos
                             # pygame.draw.circle(screen, color, pos, _radius + 2)
                             if img:
                                 screen.blit(img, rect)
                                 screen.blit(surf_0, (rect[0] + shift[0], rect[1] + shift[1]))
                 else:
                     screen.fill(background)
-                pygame.display.flip()
+                pygame.display.update()
                 # clock.tick(FPS)
     except ConnectionResetError:
         print('Try reconnect')
