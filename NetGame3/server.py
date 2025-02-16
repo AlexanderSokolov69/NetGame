@@ -150,7 +150,7 @@ class Eat(MySprite):
 
     def get_data(self):
         return {'body': self._body, 'radius': self._radius, 'color': self._color,
-                'figure': self._figure, 'length': '', 'life': ''}
+                'figure': self._figure, 'length': '', 'life': '', 'breake': 0}
 
     def get_head(self):
         return self._body[0]
@@ -202,6 +202,9 @@ class Player(MySprite):
             self._pos[0] = 0 if self._pos[0] == 0 else math.copysign(self._step, self._pos[0])
             self._pos[1] = 0 if self._pos[1] == 0 else math.copysign(self._step, self._pos[1])
             cmd = self._data.get('key', [])
+            pos = self._data.get('pos', [])
+            # if pos:
+            #     self.move_head([pos[0] - self._body[0][0], pos[1] - self._body[0][1]])
             if cmd:
                 if 'left' in cmd:
                     self._pos[0] = -self._step
@@ -266,6 +269,18 @@ class Player(MySprite):
             return False
         player = pygame.sprite.spritecollideany(self, sprites)
         if player:
+            pos = player.get_head()
+            if math.copysign(1, self._pos[0]) == math.copysign(1, pos[0]) \
+                    and math.copysign(1, self._pos[1]) == math.copysign(1, pos[1]):
+                if self.get_length() > player.get_length():
+                    radius = player.move_head([math.copysign(1, self._pos[0]) * self.get_radius(),
+                                               math.copysign(1, self._pos[1]) * self.get_radius()])
+                    # self.move_head([self._pos[0] * radius, self._pos[1] * radius])
+                else:
+                    # radius = player.move_head([self._pos[0] * self.get_radius(), self._pos[1] * self.get_radius()])
+                    radius = player.get_radius()
+                    self.move_head([math.copysign(1, self._pos[0]) * radius,
+                                    math.copysign(1, self._pos[1]) * radius])
             self._pos = player.set_pos(self._pos)
             if self.get_life() == 0 and self.get_length() > 10:
                 self.del_segment(5)
@@ -319,12 +334,22 @@ class Player(MySprite):
         self._data_out['figure'] = self._figure
         self._data_out['length'] = self.get_length()
         self._data_out['life'] = self._life
+        self._data_out['breake'] = self._break
         to_send = self._data_out.copy()
         self._data_out.clear()
         return to_send
 
     def get_head(self):
         return self._body[0]
+
+    def move_head(self, step):
+        old = self._body[0]
+        if abs(step[0]) > abs(step[1]):
+            step[0] = 0
+        else:
+            step[1] = 0
+        self._body[0] = [self._body[0][0] + step[0], self._body[0][1] + step[1]]
+        return self.get_radius()
 
     def get_length(self):
         return len(self._body)
