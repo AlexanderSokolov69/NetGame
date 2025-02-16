@@ -127,7 +127,6 @@ class MySprite(pygame.sprite.Sprite):
         return self._radius
 
 
-
 class Eat(MySprite):
     def __init__(self):
         self._pos = [0, 0]
@@ -140,8 +139,10 @@ class Eat(MySprite):
         self._count = EAT_LIFE
 
     def get_data(self):
-        return {'body': self._body, 'radius': self._radius, 'color': self._color,
-                'figure': self._figure, 'length': '', 'life': '', 'breake': 0}
+        # return {'body': self._body, 'radius': self._radius, 'color': self._color,
+        #         'figure': self._figure, 'length': '', 'life': '', 'breake': 0}
+        # pos, radius, color
+        return self._body, self._radius, self._color
 
     def get_head(self):
         return self._body[0]
@@ -172,6 +173,7 @@ class Player(MySprite):
         self._step = STEP
         self._figure = 0
         self._break = 0
+        self._sound = ''
         self._life = Const.START_LIFE
         self.user_name = ''
         self.set_data({'key': rnd[random.randint(0, 3)]})
@@ -245,13 +247,13 @@ class Player(MySprite):
         cut = self.get_length() - coll
         if self == player:
             self.del_segment(cut)
-            self._data_out['sound'] = 'ataka'
+            self.set_sound('ataka')
         else:
             if cut <= player.get_length():
                 self.del_segment(cut)
-                self._data_out['sound'] = 'ataka'
+                self.set_sound('ataka')
                 player.add_segment(cut, 1)
-                player.add_data({'sound': 'ataka'})
+                player.set_sound('ataka')
             else:
                 player.reverse()
 
@@ -319,15 +321,9 @@ class Player(MySprite):
         self.user_name = self._data.get('name', '')
 
     def get_data(self):
-        self._data_out['body'] = self._body
-        self._data_out['radius'] = self._radius
-        self._data_out['color'] = self._color
-        self._data_out['figure'] = self._figure
-        self._data_out['length'] = self.get_length()
-        self._data_out['life'] = self._life
-        self._data_out['breake'] = self._break
-        to_send = self._data_out.copy()
-        self._data_out.clear()
+        # body, radius, color, life, breake, sound
+        to_send = (self._body[::2], self._radius, self._color, self._life, self._break, self._sound)
+        self._sound = ''
         return to_send
 
     def get_head(self):
@@ -365,7 +361,7 @@ class Player(MySprite):
             return False
         ret = pygame.sprite.spritecollide(self, eat_sprites, True)
         if ret:
-            self._data_out['sound'] = 'eat'
+            self.set_sound('eat')
         return ret
 
     def reverse(self):
@@ -378,11 +374,14 @@ class Player(MySprite):
         if self.is_break():
             return
         self._break = max(RADIUS, self.get_length() // 2)
-        self._data_out['sound'] = 'break'
+        self.set_sound('break')
 
     def add_data(self, rec: dict):
         for key, val in rec.items():
             self._data_out[key] = val
+
+    def set_sound(self, sound=''):
+        self._sound = sound
 
 
 class Network:
@@ -431,10 +430,12 @@ class Network:
         data = dict()
         for addr, player in self.player_data.items():
             data[addr] = player.get_data()
+        eats = []
         for i, eat in enumerate(eat_sprites):
-            data[f'eat{i:03}'] = eat.get_data()
+            eats.append(eat.get_data())
         ret = dict()
         ret['players'] = data
+        ret['eats'] = eats
         if self.common_data['WINNER']:
             ret['WINNER'] = self.common_data['WINNER']
             self.common_data['WINNER'] = ''
@@ -580,8 +581,6 @@ if __name__ == "__main__":
         new_eat_counter += 1
         if len(eat_sprites) < EAT_COUNT:
             Eat()
-            # print('EAT:', len(eat_sprites), EAT_COUNT)
-            # print('CNT:', len(srv_host.player_data))
 
         # Передача данных игрокам
         data = srv_host.prepare_to_send()

@@ -10,6 +10,6 @@
   "EAT_LIFE": 400,
   "MIN_SAFE_LENGTH": 30,
   "START_LIFE": 5,
-  "WIDTH": 4000,
-  "HEIGHT": 4000
+  "WIDTH": 5000,
+  "HEIGHT": 5000
 }

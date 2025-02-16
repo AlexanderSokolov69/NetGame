@@ -346,10 +346,10 @@ while game:
                     print('Error of receive:', err)
                 data = dict()
                 while (pos := buff.find(b'0%%0%0%%0')) >= 0:
-                    data = buff[:pos]
+                    i_data = buff[:pos]
                     buff = buff[pos + 9:]
                     try:
-                        data = msgpack.unpackb(zlib.decompress(data))
+                        data: dict[tuple[list, int, int, int, int]] = msgpack.unpackb(zlib.decompress(i_data))
                         n = data['NUMBER']
                         if packet_number < n or n == 0:
                             convert_error = True
@@ -367,7 +367,7 @@ while game:
                         continue
 
                 try:
-                    my_pos = data['players'][my_addr]['body'][0]
+                    my_pos = data['players'][my_addr][0][0]
                     old_data = data
                     gud_packets = True
                 except Exception as e:
@@ -375,7 +375,7 @@ while game:
                     # print('GET POS ==>', e)
                     if old_data.get('players', None):
                         data = old_data
-                        my_pos = data['players'][my_addr]['body'][0]
+                        my_pos = data['players'][my_addr][0][0]
                         convert_error = True
                 if convert_error:
                     winner = data.get('WINNER', '')
@@ -401,19 +401,18 @@ while game:
                     surf = font_time.render(menu.user_name, False, time_color)
                     screen.blit(surf, (width - surf.get_rect().width - 50, 20))
                     camera.move(*my_pos, data.get('NUMBER', 0))
-
+                    for eat in data.get('eats', []):
+                        # pos, radius, color
+                        pos = camera.shift(eat[0][0])
+                        pygame.draw.circle(screen, eat[2], pos, eat[1])
                     for addr, player in data.get('players', dict()).items():
-                        # print(player)
-                        sound = player.get('sound', '')
+                        # body, radius, color, life, breake, sound
+                        body, radius, color, hero_life, breake, sound = player
                         if sound:
                             play_sound(sound, addr)
-                        breake = player['breake']
-                        body = player['body']
-                        figure = player['figure']
+                        figure = 0
                         len_body = len(body)
-                        hero_length = player['length']
-                        hero_life = player['life']
-                        radius = player['radius']
+                        hero_length = len_body
                         my_head = addr == my_addr
                         if my_head:
                             len_body = len(body)
@@ -421,7 +420,7 @@ while game:
                             screen.blit(surf, (width - surf.get_rect().width - 50, 120))
                             color_r, color_g, color_b = menu.color
                         else:
-                            color_r, color_g, color_b = player['color']
+                            color_r, color_g, color_b = color
                         dr_color = (255 - color_r) // len_body
                         dg_color = (255 - color_g) // len_body
                         db_color = (255 - color_b) // len_body
@@ -467,14 +466,14 @@ while game:
                 else:
                     screen.fill(background)
                 if gud_packets:
-                    pygame.draw.circle(screen, 'green', (20, 20), 5, 2)
+                    pygame.draw.circle(screen, 'green', (20, 20), 8, 4)
                 else:
-                    pygame.draw.circle(screen, 'red', (20, 20), 5, 2)
+                    pygame.draw.circle(screen, 'red', (20, 20), 10, 6)
                 pygame.display.update()
     except ConnectionResetError:
         print('Try reconnect')
         continue
-    except Exception as err:
-        print('All errors: ', err)
+    # except Exception as err:
+    #     print('All errors: ', err)
 pygame.quit()
 sys.exit()
