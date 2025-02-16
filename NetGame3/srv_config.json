@@ -1,9 +1,9 @@
 {
-  "HOST": "127.0.0.1",
+  "HOST": "",
   "PORT": "5885",
   "GAME_TIMER": 120,
   "BOTS_COUNTER": 30,
-  "DATA_WIND": 8192,
+  "DATA_WIND": 4096,
   "CHAOS": 1,
   "S_FPS": 20,
   "EAT_COUNT": 100,

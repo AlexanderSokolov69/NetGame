@@ -321,8 +321,9 @@ class Player(MySprite):
         self.user_name = self._data.get('name', '')
 
     def get_data(self):
-        # body, radius, color, life, breake, sound
-        to_send = (self._body[::2], self._radius, self._color, self._life, self._break, self._sound)
+        # body, radius, color, life, breake, sound, len_body
+        to_send = (self._body[::2], self._radius, self._color,
+                   self._life, self._break, self._sound, self.get_length())
         self._sound = ''
         return to_send
 

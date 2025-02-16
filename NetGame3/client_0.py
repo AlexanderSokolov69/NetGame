@@ -387,19 +387,18 @@ while game:
                     camera.move(*my_pos)
                     for eat in data.get('eats', []):
                         # pos, radius, color
-                        pos = camera.shift(eat[0][0])
-                        pygame.draw.circle(screen, eat[2], pos, eat[1])
+                        l_pos = camera.shift(eat[0][0])
+                        rect = pygame.Rect(l_pos[0] - eat[1], l_pos[1] - eat[1],
+                                           eat[1] * 2, eat[1] * 2)
+                        pygame.draw.rect(screen, eat[2], rect)
                     for addr, player in data.get('players', dict()).items():
-                        # body, radius, color, life, breake, sound
-                        body, radius, color, hero_life, breake, sound = player
+                        # body, radius, color, life, breake, sound, real_len
+                        body, radius, color, hero_life, breake, sound, len_body = player
                         if sound:
                             play_sound(sound, addr)
                         figure = 0
-                        len_body = len(body)
-                        hero_length = len_body
                         my_head = addr == my_addr
                         if my_head:
-                            len_body = len(body)
                             surf = font_time.render(f"ДЛИНА: {len_body}", False, time_color)
                             screen.blit(surf, (width - surf.get_rect().width - 50, 120))
                             color_r, color_g, color_b = menu.color
