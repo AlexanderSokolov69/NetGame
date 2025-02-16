@@ -8,6 +8,8 @@ import sys
 import json
 import zlib
 from random import choice
+
+import msgpack
 import pygame
 
 from NetGame3.cl_color import Color
@@ -334,7 +336,7 @@ while game:
                         flag = False
                 st = json.dumps(cmd)
                 try:
-                    s.sendall(zlib.compress(st.encode()))
+                    s.sendall(zlib.compress(msgpack.packb(st)))
                 except Exception as err:
                     print('Error of send:', err)
                 try:
@@ -347,7 +349,7 @@ while game:
                     data = buff[:pos]
                     buff = buff[pos + 9:]
                     try:
-                        data = json.loads(zlib.decompress(data).decode('utf-8'))
+                        data = msgpack.unpackb(zlib.decompress(data))
                         n = data['NUMBER']
                         if packet_number < n or n == 0:
                             convert_error = True

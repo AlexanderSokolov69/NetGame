@@ -10,6 +10,7 @@ import zlib
 import sqlite3
 from random import randint
 
+import msgpack
 import pygame
 
 from const import Const
@@ -513,7 +514,7 @@ class Network:
     def handle(self, sock: socket.socket) -> any:
         data = None
         try:
-            data = zlib.decompress(sock.recv(DATA_WIND)).decode()  # Should be ready
+            data = msgpack.unpackb(zlib.decompress(sock.recv(DATA_WIND)))  # Should be ready
         except ConnectionError:
             print(f"Client suddenly closed while receiving {sock}")
             return None
@@ -585,8 +586,7 @@ if __name__ == "__main__":
         # Передача данных игрокам
         data = srv_host.prepare_to_send()
         try:
-            data = json.dumps(data)
-            data = zlib.compress(data.encode('utf-8')) + b'0%%0%0%%0'
+            data = zlib.compress(msgpack.packb(data)) + b'0%%0%0%%0'
             packet_size = len(data)
         except Exception as err:
             print('Error prepare to send:', err)
