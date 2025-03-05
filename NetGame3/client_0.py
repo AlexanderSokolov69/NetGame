@@ -305,7 +305,9 @@ while game:
                         tm_winner = ''
                         break
                     if event.type == pygame.MOUSEBUTTONDOWN:
-                        cmd['pos'] = event.pos
+                        # cmd['pos'] = event.pos
+                        if event.button == 3:
+                            cmd['key'] = ["stop"]
 
                 keys = pygame.key.get_pressed()
                 if any(keys):
@@ -319,6 +321,8 @@ while game:
                         cmd['key'].append("down")
                     if keys[pygame.K_SPACE]:
                         cmd['key'] = ["stop"]
+                    if keys[pygame.K_TAB]:
+                        cmd['key'] = ["freeze"]
                     if keys[pygame.K_ESCAPE]:
                         flag = False
                 # st = json.dumps(cmd)

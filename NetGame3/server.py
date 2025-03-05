@@ -164,6 +164,7 @@ class Player(MySprite):
         if pos is None:
             pos = random_coord()
         self._pos = [0, 0]
+        self._freeze = False
         self._body = [pos]
         self._color = Color().color
         super().__init__(self._body[0], radius, self._color, all_sprites)
@@ -202,20 +203,28 @@ class Player(MySprite):
                 if 'left' in cmd:
                     self._pos[0] = -self._step
                     self._pos[1] = 0
-                if 'right' in cmd:
+                elif 'right' in cmd:
                     self._pos[0] = self._step
                     self._pos[1] = 0
-                if 'down' in cmd:
+                elif 'down' in cmd:
                     self._pos[1] = self._step
                     self._pos[0] = 0
-                if 'up' in cmd:
+                elif 'up' in cmd:
                     self._pos[1] = -self._step
                     self._pos[0] = 0
-                if 'stop' in cmd and self.super_speed == 1:
+                elif 'stop' in cmd and self.super_speed == 1:
                     self._pos[1] *= 2
                     self._pos[0] *= 2
                     self.super_speed = 0
                     self.breake()
+                elif 'freeze' in cmd:
+                    self._pos[1] = 0
+                    self._pos[0] = 0
+                    self._freeze = True
+                if self._freeze and any(self._pos):
+                    self.breake()
+                    self._freeze = False
+
             if Network.num % 3 == 0:
                 sprites = all_sprites.copy()
                 sprites.remove(self)
@@ -246,8 +255,9 @@ class Player(MySprite):
             return
         cut = self.get_length() - coll
         if self == player:
-            self.del_segment(cut)
-            self.set_sound('ataka')
+            if  any(self._pos):
+                self.del_segment(cut)
+                self.set_sound('ataka')
         else:
             if cut <= player.get_length():
                 self.del_segment(cut)
