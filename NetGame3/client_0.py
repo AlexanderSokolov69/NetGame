@@ -426,13 +426,14 @@ while game:
 
                                 if len_body > 30 and (abs(dx) > scr_dx or abs(dy) > scr_dy):
                                     rad = (dx * dx + dy * dy) ** 0.5
-                                    koef = rad / 400
-                                    _x = scr_dx + (dx / koef)
-                                    _y = scr_dy + (dy / koef)
-                                    # pygame.draw.line(screen, 'gray', (scr_dx, scr_dy),
-                                    #                 (_x, _y))
-                                    pygame.draw.circle(screen, 'darkgray', (_x, _y),
-                                                       len_body // 2, 1)
+                                    if rad < 2000:
+                                        koef = rad / 400
+                                        _x = scr_dx + (dx / koef)
+                                        _y = scr_dy + (dy / koef)
+                                        pygame.draw.line(screen, 'gray', (scr_dx, scr_dy),
+                                                        (_x, _y))
+                                        pygame.draw.circle(screen, 'gray', (_x, _y),
+                                                           len_body // 2, 1)
                             color_r, color_g, color_b = color
                         dr_color = (255 - color_r) // len_body
                         dg_color = (255 - color_g) // len_body
