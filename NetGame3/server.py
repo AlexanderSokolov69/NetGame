@@ -479,7 +479,7 @@ class Network:
                 win_addr = f"{addr}"
                 win_name = f"{player.user_name} ({addr})"
                 win_len = player.get_length()
-                count = f"{win_addr}. Длина: {win_len}."
+                count = f"{player.user_name}. Длина: {win_len}."
                 self.last_winner = win_addr, win_len, win_name
         self.common_data['WINNER'] = count
         # print('Winner:', count)

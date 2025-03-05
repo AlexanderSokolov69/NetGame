@@ -12,7 +12,7 @@ from random import choice
 import msgpack
 import pygame
 
-from NetGame3.cl_color import Color, load_image
+from cl_color import Color, load_image
 from const import Const
 
 
@@ -26,6 +26,8 @@ with open('config.json') as f:
     if s_host:
         Const.data['HOST'] = s_host
     FULLSCREEN = data.get("FULLSCREEN", 0)
+    width = data.get("WIDTH", 1600)
+    height = data.get("HEIGHT", 900)
 
 DATA_WIND = Const.data['DATA_WIND']
 SIZE_MUL = 2
@@ -33,7 +35,8 @@ l_text, h_text, step_text = 200, 200, 70
 background = pygame.Color((0, 50, 0))
 time_color = pygame.Color((10, 80, 10))
 pygame.init()
-size = width, height = 1400, 900
+size = width, height
+
 if FULLSCREEN:
     screen = pygame.display.set_mode(size, pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF)
 else:
