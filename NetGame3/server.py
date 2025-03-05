@@ -187,11 +187,14 @@ class Player(MySprite):
     def get_pos(self):
         return self._pos
 
-    def set_pos(self, pos):
-        old_pos, self._pos = self._pos, pos
-        return old_pos
+    def set_pos(self, pos=None):
+        if pos:
+            old_pos, self._pos = self._pos, pos
+            return old_pos
+        return self._pos
 
     def update(self):
+        self._step = max(1, STEP - self.get_length() // 50)
         if self._break <= 0:
             self._pos[0] = 0 if self._pos[0] == 0 else math.copysign(self._step, self._pos[0])
             self._pos[1] = 0 if self._pos[1] == 0 else math.copysign(self._step, self._pos[1])
@@ -199,18 +202,23 @@ class Player(MySprite):
             pos = self._data.get('pos', [])
             # if pos:
             #     self.move_head([pos[0] - self._body[0][0], pos[1] - self._body[0][1]])
+            _pos = self._pos
             if cmd:
                 if 'left' in cmd:
-                    self._pos[0] = -self._step
+                    if self._pos[0] == 0 or MIN_SAFE_LENGTH > self.get_length():
+                        self._pos[0] = -self._step
                     self._pos[1] = 0
                 elif 'right' in cmd:
-                    self._pos[0] = self._step
+                    if self._pos[0] == 0 or MIN_SAFE_LENGTH > self.get_length():
+                        self._pos[0] = self._step
                     self._pos[1] = 0
                 elif 'down' in cmd:
-                    self._pos[1] = self._step
+                    if self._pos[1] == 0 or MIN_SAFE_LENGTH > self.get_length():
+                        self._pos[1] = self._step
                     self._pos[0] = 0
                 elif 'up' in cmd:
-                    self._pos[1] = -self._step
+                    if self._pos[1] == 0 or MIN_SAFE_LENGTH > self.get_length():
+                        self._pos[1] = -self._step
                     self._pos[0] = 0
                 elif 'stop' in cmd and self.super_speed == 1:
                     self._pos[1] *= 2
@@ -221,6 +229,8 @@ class Player(MySprite):
                     self._pos[1] = 0
                     self._pos[0] = 0
                     self._freeze = True
+                # if abs(_pos[0]) == abs(self._pos[0]) and abs(_pos[1]) == abs(self._pos[1]):
+                #     self.set_pos(_pos)
                 if self._freeze and any(self._pos):
                     self.breake()
                     self._freeze = False
@@ -272,19 +282,22 @@ class Player(MySprite):
             return False
         player = pygame.sprite.spritecollideany(self, sprites)
         if player:
-            pos = player.get_head()
-            if math.copysign(1, self._pos[0]) == math.copysign(1, pos[0]) \
-                    and math.copysign(1, self._pos[1]) == math.copysign(1, pos[1]):
-                if self.get_length() > player.get_length():
-                    radius = player.move_head([math.copysign(1, self._pos[0]) * self.get_radius(),
-                                               math.copysign(1, self._pos[1]) * self.get_radius()])
-                    # self.move_head([self._pos[0] * radius, self._pos[1] * radius])
-                else:
-                    # radius = player.move_head([self._pos[0] * self.get_radius(), self._pos[1] * self.get_radius()])
-                    radius = player.get_radius()
-                    self.move_head([math.copysign(1, self._pos[0]) * radius,
-                                    math.copysign(1, self._pos[1]) * radius])
-            self._pos = player.set_pos(self._pos)
+            if self.get_length() > player.get_length():
+                radius = self.get_radius()
+                player.move_head([math.copysign(1, self._pos[0]) * radius,
+                                  math.copysign(1, self._pos[1]) * radius])
+            else:
+                radius = player.get_radius()
+                pos = player.get_pos()
+                self.move_head([math.copysign(1, pos[0]) * radius,
+                                math.copysign(1, pos[1]) * radius])
+            s_pos = self._pos
+            p_pos = player.get_pos()
+            if s_pos[0] == p_pos[0] or s_pos[1] == p_pos[1]:
+                player.set_pos([p_pos[1], p_pos[0]])
+                self._pos = [s_pos[1], s_pos[0]]
+            else:
+                self._pos = player.set_pos(self._pos)
             if self.get_life() == 0 and self.get_length() > 10:
                 self.del_segment(5)
             if player.get_life() == 0 and player.get_length() > 10:

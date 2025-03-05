@@ -285,6 +285,9 @@ while game:
     my_pos = [0, 0]
     game = menu.exec(screen)
     menu.check_user_name()
+    gamers = dict()
+    scr_dx = screen.get_width() // 2
+    scr_dy = screen.get_height() // 2
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -296,6 +299,7 @@ while game:
             end_clr = [255, 255, 255]
             len_body = 0
             old_data = dict()
+            gamers.clear()
             while flag:
                 cmd = {'key': [], 'name': menu.user_name}
                 for event in pygame.event.get():
@@ -406,10 +410,29 @@ while game:
                         figure = 0
                         my_head = addr == my_addr
                         if my_head:
+                            gamers['me'] = body[0], radius
                             surf = font_time.render(f"ДЛИНА: {len_body}", False, time_color)
                             screen.blit(surf, (width - surf.get_rect().width - 50, 120))
                             color_r, color_g, color_b = menu.color
                         else:
+                            if gamers.get('me') and True or addr[:3] != 'bot':
+                                gamers[addr] = body[0], radius
+                                me_body = gamers['me'][0]
+                                b_body = body[0]
+                                l_x, l_y = me_body[0] - b_body[0], me_body[1] - b_body[1]
+                                r_x, r_y = b_body[0] - me_body[0], b_body[1] - me_body[1]
+                                dx = -l_x if l_x < r_x else r_x
+                                dy = -l_y if l_y < r_y else r_y
+
+                                if len_body > 30 and (abs(dx) > scr_dx or abs(dy) > scr_dy):
+                                    rad = (dx * dx + dy * dy) ** 0.5
+                                    koef = rad / 400
+                                    _x = scr_dx + (dx / koef)
+                                    _y = scr_dy + (dy / koef)
+                                    # pygame.draw.line(screen, 'gray', (scr_dx, scr_dy),
+                                    #                 (_x, _y))
+                                    pygame.draw.circle(screen, 'darkgray', (_x, _y),
+                                                       len_body // 2, 1)
                             color_r, color_g, color_b = color
                         dr_color = (255 - color_r) // len_body
                         dg_color = (255 - color_g) // len_body

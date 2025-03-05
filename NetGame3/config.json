@@ -1,5 +1,5 @@
 {
-  "HOST": "172.16.1.33",
+  "HOST": "localhost",
   "PORT": "5885",
   "FULLSCREEN": 0,
   "WIDTH": 1600,

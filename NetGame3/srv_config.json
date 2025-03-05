@@ -1,8 +1,8 @@
 {
-  "HOST": "",
+  "HOST": "localhost",
   "PORT": "5885",
   "GAME_TIMER": 120,
-  "BOTS_COUNTER": 30,
+  "BOTS_COUNTER": 3,
   "DATA_WIND": 4096,
   "CHAOS": 1,
   "S_FPS": 20,
@@ -10,6 +10,6 @@
   "EAT_LIFE": 400,
   "MIN_SAFE_LENGTH": 30,
   "START_LIFE": 5,
-  "WIDTH": 5000,
-  "HEIGHT": 5000
+  "WIDTH": 4000,
+  "HEIGHT": 4000
 }
