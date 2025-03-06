@@ -424,7 +424,7 @@ while game:
                                 dx = -l_x if l_x < r_x else r_x
                                 dy = -l_y if l_y < r_y else r_y
 
-                                if len_body > 30 and (abs(dx) > scr_dx or abs(dy) > scr_dy):
+                                if len_body > 50 and (abs(dx) > scr_dx or abs(dy) > scr_dy):
                                     rad = (dx * dx + dy * dy) ** 0.5
                                     if rad < 2000:
                                         koef = rad / 400
@@ -432,8 +432,8 @@ while game:
                                         _y = scr_dy + (dy / koef)
                                         pygame.draw.line(screen, 'gray', (scr_dx, scr_dy),
                                                         (_x, _y))
-                                        pygame.draw.circle(screen, 'gray', (_x, _y),
-                                                           len_body // 2, 1)
+                                        pygame.draw.circle(screen, color, (_x, _y),
+                                                           min(100, len_body // 2), max(1, len_body // 50))
                             color_r, color_g, color_b = color
                         dr_color = (255 - color_r) // len_body
                         dg_color = (255 - color_g) // len_body
