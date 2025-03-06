@@ -194,7 +194,7 @@ class Player(MySprite):
         return self._pos
 
     def update(self):
-        self._step = max(1, STEP - self.get_length() // 30)
+        self._step = max(4, STEP - self.get_length() // 30)
         if self._break <= 0:
             self._pos[0] = 0 if self._pos[0] == 0 else math.copysign(self._step, self._pos[0])
             self._pos[1] = 0 if self._pos[1] == 0 else math.copysign(self._step, self._pos[1])

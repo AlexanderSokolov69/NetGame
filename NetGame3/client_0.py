@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding:utf-8
+import math
 import os
 # import random
 import socket
@@ -280,6 +281,7 @@ s_head = SnakeHead()
 convert_error = True
 packet_number = 0
 tm_winner = ''
+
 while game:
     camera = Camera(0, 0)
     my_pos = [0, 0]
@@ -391,6 +393,7 @@ while game:
                     pygame.draw.circle(screen, time_color, (scr_dx, scr_dy), 350, 1)
                     pygame.draw.circle(screen, time_color, (scr_dx, scr_dy), 300, 1)
                     pygame.draw.circle(screen, time_color, (scr_dx, scr_dy), 250, 1)
+
                     surf = font_time.render(f"ТАЙМЕР: {tm}", False, time_color)
                     screen.blit(surf, (60, 20))
                     if tm_winner:
@@ -419,7 +422,6 @@ while game:
                             color_r, color_g, color_b = menu.color
                         else:
                             if gamers.get('me'):
-                                # gamers[addr] = body[0], radius
                                 me_body = gamers['me'][0]
                                 b_body = body[0]
                                 if me_body[0] < b_body[0]:
@@ -434,18 +436,18 @@ while game:
                                 dy = y1 if abs(y1) < abs(y2) else y2
 
                                 if len_body > 30 and (abs(dx) > scr_dx or abs(dy) > scr_dy):
-                                    rad = (dx * dx + dy * dy) ** 0.5
+                                    rad = math.sqrt(dx * dx + dy * dy)
                                     if rad < 2000:
-                                        koef = rad / 250
+                                        koef = 250 / rad
                                     elif rad > 3000:
-                                        koef = rad / 400
+                                        koef = 400 / rad
                                     elif rad > 2500:
-                                        koef = rad / 350
+                                        koef = 350 / rad
                                     else:
-                                        koef = rad / 300
+                                        koef = 300 / rad
 
-                                    _x = scr_dx + (dx / koef)
-                                    _y = scr_dy + (dy / koef)
+                                    _x = scr_dx + (dx * koef)
+                                    _y = scr_dy + (dy * koef)
                                     dist = font.render(str(len_body), False, time_color)
                                     screen.blit(dist, (_x, _y))
                                     c_color = color if gamers['me'][1] > 100 else time_color
