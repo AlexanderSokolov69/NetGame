@@ -387,7 +387,10 @@ while game:
                     else:
                         end_clr = [250, 255, 250]
                         screen.fill(background)
-
+                    pygame.draw.circle(screen, time_color, (scr_dx, scr_dy), 400, 1)
+                    pygame.draw.circle(screen, time_color, (scr_dx, scr_dy), 350, 1)
+                    pygame.draw.circle(screen, time_color, (scr_dx, scr_dy), 300, 1)
+                    pygame.draw.circle(screen, time_color, (scr_dx, scr_dy), 250, 1)
                     surf = font_time.render(f"ТАЙМЕР: {tm}", False, time_color)
                     screen.blit(surf, (60, 20))
                     if tm_winner:
@@ -410,30 +413,44 @@ while game:
                         figure = 0
                         my_head = addr == my_addr
                         if my_head:
-                            gamers['me'] = body[0], radius
+                            gamers['me'] = body[0], len_body
                             surf = font_time.render(f"ДЛИНА: {len_body}", False, time_color)
                             screen.blit(surf, (width - surf.get_rect().width - 50, 120))
                             color_r, color_g, color_b = menu.color
                         else:
-                            if gamers.get('me') and True or addr[:3] != 'bot':
-                                gamers[addr] = body[0], radius
+                            if gamers.get('me'):
+                                # gamers[addr] = body[0], radius
                                 me_body = gamers['me'][0]
                                 b_body = body[0]
-                                l_x, l_y = me_body[0] - b_body[0], me_body[1] - b_body[1]
-                                r_x, r_y = b_body[0] - me_body[0], b_body[1] - me_body[1]
-                                dx = -l_x if l_x < r_x else r_x
-                                dy = -l_y if l_y < r_y else r_y
+                                if me_body[0] < b_body[0]:
+                                    x1, x2 = b_body[0] - me_body[0], b_body[0] - Const.WIDTH - me_body[0]
+                                else:
+                                    x1, x2 = b_body[0] - me_body[0], b_body[0] + Const.WIDTH - me_body[0]
+                                if me_body[1] < b_body[1]:
+                                    y1, y2 = b_body[1] - me_body[1], b_body[1] - Const.HEIGHT - me_body[1]
+                                else:
+                                    y1, y2 = b_body[1] - me_body[1], b_body[1] + Const.HEIGHT - me_body[1]
+                                dx = x1 if abs(x1) < abs(x2) else x2
+                                dy = y1 if abs(y1) < abs(y2) else y2
 
-                                if len_body > 50 and (abs(dx) > scr_dx or abs(dy) > scr_dy):
+                                if len_body > 30 and (abs(dx) > scr_dx or abs(dy) > scr_dy):
                                     rad = (dx * dx + dy * dy) ** 0.5
                                     if rad < 2000:
+                                        koef = rad / 250
+                                    elif rad > 3000:
                                         koef = rad / 400
-                                        _x = scr_dx + (dx / koef)
-                                        _y = scr_dy + (dy / koef)
-                                        pygame.draw.line(screen, 'gray', (scr_dx, scr_dy),
-                                                        (_x, _y))
-                                        pygame.draw.circle(screen, color, (_x, _y),
-                                                           min(100, len_body // 2), max(1, len_body // 50))
+                                    elif rad > 2500:
+                                        koef = rad / 350
+                                    else:
+                                        koef = rad / 300
+
+                                    _x = scr_dx + (dx / koef)
+                                    _y = scr_dy + (dy / koef)
+                                    dist = font.render(str(len_body), False, time_color)
+                                    screen.blit(dist, (_x, _y))
+                                    c_color = color if gamers['me'][1] > 100 else time_color
+                                    pygame.draw.circle(screen, c_color, (_x, _y),
+                                                        min(100, len_body // 2), max(1, len_body // 50))
                             color_r, color_g, color_b = color
                         dr_color = (255 - color_r) // len_body
                         dg_color = (255 - color_g) // len_body
