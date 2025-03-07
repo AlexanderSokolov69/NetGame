@@ -73,7 +73,7 @@ SIZE_MUL = Const.SIZE_MUL
 MIN_SAFE_LENGTH = Const.MIN_SAFE_LENGTH
 
 coords = set()
-rnd = ['left', 'right', 'up', 'down']
+rnd = ['left', 'right', 'up', 'down', 'stop', 'freeze']
 
 con = sqlite3.connect('data/results.db')
 cur = con.cursor()
@@ -194,7 +194,7 @@ class Player(MySprite):
         return self._pos
 
     def update(self):
-        self._step = max(4, STEP - self.get_length() // 30)
+        self._step = max(5, STEP - self.get_length() // 30)
         if self._break <= 0:
             self._pos[0] = 0 if self._pos[0] == 0 else math.copysign(self._step, self._pos[0])
             self._pos[1] = 0 if self._pos[1] == 0 else math.copysign(self._step, self._pos[1])
@@ -221,8 +221,10 @@ class Player(MySprite):
                         self._pos[1] = -self._step
                     self._pos[0] = 0
                 elif 'stop' in cmd and self.super_speed == 1:
-                    self._pos[1] *= 2
-                    self._pos[0] *= 2
+                    if self._pos[0] == 0:
+                        self._pos[1] = math.copysign(STEP, self._pos[1]) * 2
+                    else:
+                        self._pos[0] = math.copysign(STEP, self._pos[0]) * 2
                     self.super_speed = 0
                     self.breake()
                 elif 'freeze' in cmd:
@@ -240,8 +242,8 @@ class Player(MySprite):
                 sprites.remove(self)
                 if self.eat_in_head():
                     self.add_segment()
-                self.is_head_to_head(sprites)
-                self.is_body_atak(sprites)
+                if not self.is_head_to_head(sprites):
+                    self.is_body_atak(sprites)
         else:
             self._break -= 1
         self._data['key'] = None
@@ -277,35 +279,45 @@ class Player(MySprite):
             else:
                 player.reverse()
 
+    def change_impulse(self, player):
+        if self.get_length() > player.get_length():
+            s1, s2 = self, player
+        else:
+            s1, s2 = player, self
+        s_pos = s1.get_pos()
+        p_pos = s2.get_pos()
+        if s_pos[0] == p_pos[0] or s_pos[1] == p_pos[1]:
+            s1.set_pos([p_pos[1], p_pos[0]])
+            s2.set_pos([s_pos[1], s_pos[0]])
+        else:
+            self._pos = player.set_pos(self._pos)
+
     def is_head_to_head(self, sprites):
         if self.is_break():
             return False
         player = pygame.sprite.spritecollideany(self, sprites)
-        if player:
+        if player and not player.is_break():
+            # print(self.get_pos(), player.get_pos(), ' - ', self.get_head(), player.get_head())
             if self.get_length() > player.get_length():
                 radius = self.get_radius()
-                player.move_head([math.copysign(1, self._pos[0]) * radius,
-                                  math.copysign(1, self._pos[1]) * radius])
+                player.move_head([math.copysign(1, self._pos[1]) * radius * 1.5,
+                                  math.copysign(1, self._pos[0]) * radius * 1.5])
             else:
                 radius = player.get_radius()
                 pos = player.get_pos()
-                self.move_head([math.copysign(1, pos[0]) * radius,
-                                math.copysign(1, pos[1]) * radius])
-            s_pos = self._pos
-            p_pos = player.get_pos()
-            if s_pos[0] == p_pos[0] or s_pos[1] == p_pos[1]:
-                player.set_pos([p_pos[1], p_pos[0]])
-                self._pos = [s_pos[1], s_pos[0]]
-            else:
-                self._pos = player.set_pos(self._pos)
+                self.move_head([math.copysign(1, pos[1]) * radius * 1.5,
+                                math.copysign(1, pos[0]) * radius * 1.5])
             if self.get_life() == 0 and self.get_length() > 10:
                 self.del_segment(5)
             if player.get_life() == 0 and player.get_length() > 10:
                 player.del_segment(5)
-            self.set_life(-1)
             player.set_life(-1)
             player.breake()
+            self.set_life(-1)
             self.breake()
+            self.change_impulse(player)
+            return True
+        return False
 
     def move(self):
         segment = self._body[0].copy()
@@ -491,7 +503,7 @@ class Network:
                 self.game_time.second + self.game_time.minute * 60)
 
     def reset_game(self):
-        global all_sprites
+        global all_sprites, eat_sprites
         Network.num = 0
         self.super_speed = 1
         count = ''
@@ -523,7 +535,7 @@ class Network:
         # print(win_stat)
         self.sound_on = False
         coords.clear()
-        all_sprites = pygame.sprite.Group()
+        all_sprites.empty()
         for addr in self.player_data.copy():
             if addr[:3] == 'bot':
                 self.player_data.pop(addr)
@@ -581,7 +593,7 @@ if __name__ == "__main__":
              font2.render('Скорость:', True, 'orange')]
 
     # Игровой цикл
-    pygame.time.set_timer(pygame.USEREVENT + 1100, 1000, 0)
+    pygame.time.set_timer(pygame.USEREVENT + 1100, 500, 0)
     pygame.time.set_timer(pygame.USEREVENT + 1200, 3000, 0)
     new_eat_counter = 0
     # test_time = 0
@@ -637,7 +649,7 @@ if __name__ == "__main__":
             if event.type == pygame.USEREVENT + 1100:
                 rnd_num = randint(0, srv_host.bots_counter - 1)
                 try:
-                    srv_host.player_data[f"bot{rnd_num:03}"].set_data({'key': rnd[random.randint(0, 3)]})
+                    srv_host.player_data[f"bot{rnd_num:03}"].set_data({'key': rnd[random.randint(0, 4)]})
                 except:
                     pass
             if event.type == pygame.USEREVENT + 1200:
