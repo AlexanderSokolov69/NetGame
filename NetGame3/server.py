@@ -180,6 +180,16 @@ class Player(MySprite):
         self.set_data({'key': rnd[random.randint(0, 3)]})
         self.super_speed = 1
         self.segment = MySprite()
+        self._under_attack = False
+
+    def set_under_attack(self):
+        self._under_attack = True
+
+    def reset_under_attack(self):
+        self._under_attack = False
+
+    def is_under_attack(self):
+        return self._under_attack
 
     def is_break(self):
         return self._break > 0
@@ -270,9 +280,11 @@ class Player(MySprite):
             if  any(self._pos):
                 self.del_segment(cut)
                 self.set_sound('ataka')
+                self.set_under_attack()
         else:
             if cut <= player.get_length():
                 self.del_segment(cut)
+                self.set_under_attack()
                 self.set_sound('ataka')
                 player.add_segment(cut, 1)
                 player.set_sound('ataka')
@@ -299,6 +311,7 @@ class Player(MySprite):
         if player and not player.is_break():
             # print(self.get_pos(), player.get_pos(), ' - ', self.get_head(), player.get_head())
             if self.get_length() > player.get_length():
+                player.set_under_attack()
                 radius = self.get_radius()
                 player.move_head([math.copysign(1, self._pos[1]) * radius * 1.5,
                                   math.copysign(1, self._pos[0]) * radius * 1.5])
@@ -647,11 +660,21 @@ if __name__ == "__main__":
             # if event.type == pygame.MOUSEMOTION:
             #     pygame.display.set_caption(f"{event.pos}")
             if event.type == pygame.USEREVENT + 1100:
-                rnd_num = randint(0, srv_host.bots_counter - 1)
-                try:
-                    srv_host.player_data[f"bot{rnd_num:03}"].set_data({'key': rnd[random.randint(0, 4)]})
-                except:
-                    pass
+                test = True
+                for addr, unit in srv_host.player_data.items():
+                    if unit.is_under_attack() and 'bot' in addr:
+                        try:
+                            srv_host.player_data[f"{addr}"].set_data({'key': rnd[random.randint(0, 4)]})
+                            unit.reset_under_attack()
+                            test = False
+                        except:
+                            pass
+                if test:
+                    rnd_num = randint(0, srv_host.bots_counter - 1)
+                    try:
+                        srv_host.player_data[f"bot{rnd_num:03}"].set_data({'key': rnd[random.randint(0, 4)]})
+                    except:
+                        pass
             if event.type == pygame.USEREVENT + 1200:
                 srv_host.super_speed = 1
 
