@@ -6,7 +6,7 @@ class Const:
     STEP = 10
     RADIUS = 10
     COUNT = 2
-    SIZE_MUL = 2
+    SIZE_MUL = 3
     MIN_SAFE_LENGTH = 30
     START_LIFE = 10
     data = dict()

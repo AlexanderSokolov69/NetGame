@@ -207,33 +207,45 @@ sound_ataka = pygame.mixer.Sound('data/brake.ogg')
 font_win = pygame.font.Font('data/Capsmall.ttf', 50)
 font_time = pygame.font.Font('data/Capsmall.ttf', 80)
 img_list = [load_image('snake.png'), load_image('snake2.png'),
-            load_image('snake3.png'), load_image('snake4.png')]
+            load_image('snake3.png'), load_image('snake4.png'),
+            load_image('snake5.png')]
 font = pygame.font.Font('data/Capsmall.ttf', size=20)
 
 
 class SnakeHead:
     def __init__(self):
         self._history = dict()
+        self._cache = dict()
         snake_head = img_list[3]
         snake_head2 = pygame.transform.flip(snake_head, True, False)
+        snake_head_2 = img_list[4]
+        snake_head2_2 = pygame.transform.flip(snake_head_2, True, False)
         self._img = {'right': snake_head,
                      'left': snake_head2,
                      'down': pygame.transform.rotate(snake_head2, -90),
-                     'up': pygame.transform.rotate(snake_head2, 90)}
+                     'up': pygame.transform.rotate(snake_head2, 90),
+                     'stop': img_list[0]}
+        self._img2 = {'right': snake_head_2,
+                     'left': snake_head2_2,
+                     'down': pygame.transform.rotate(snake_head2_2, -90),
+                     'up': pygame.transform.rotate(snake_head2_2, 90),
+                     'stop': img_list[0]}
 
     def get_head(self, body, pos, radius, addr):
-        if len(body) == 1:
-            return None, None
-        dx = body[0][0] - body[1][0]
-        dy = body[0][1] - body[1][1]
-        if dx > 0:
-            _state = 'right'
-        elif dx < 0:
-            _state = 'left'
-        elif dy > 0:
-            _state = 'up'
+        # radius = min(100, radius)
+        if len(body) <= 1:
+            _state = 'stop'
         else:
-            _state = 'down'
+            dx = body[0][0] - body[1][0]
+            dy = body[0][1] - body[1][1]
+            if dx > 0:
+                _state = 'right'
+            elif dx < 0:
+                _state = 'left'
+            elif dy > 0:
+                _state = 'up'
+            else:
+                _state = 'down'
         a_state, a_count = self._history.get(addr, ['right', 0])
         if a_state == _state:
             self._history[addr] = (a_state, 0)
@@ -251,9 +263,28 @@ class SnakeHead:
         elif a_state == 'up':
             _shift_y = 0
             _shift_x = -(radius // 2)
-        _img = pygame.transform.scale(self._img[a_state], (radius * 2, radius * 2))
+        _img = self.cache_img(a_state, radius)
         _rect = _img.get_rect().move(pos[0] - radius, pos[1] - radius)
         return _img, _rect, _shift_x, _shift_y
+
+    def cache_img(self, a_state, radius):
+        img = self._cache.get((a_state, radius))
+        if img:
+            return img
+        else:
+            if radius < 80:
+                img = pygame.transform.scale(self._img[a_state], (radius * 2, radius * 2)).convert_alpha()
+            else:
+                img = pygame.transform.scale(self._img2[a_state], (radius * 2, radius * 2)).convert_alpha()
+            self._cache[(a_state, radius)] = img
+        return img
+
+
+class Head(pygame.sprite.Sprite):
+    def __init__(self, image, rect, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.image = image
+        self.rect = rect
 
 
 def play_sound(sound: str, addr=''):
@@ -281,6 +312,7 @@ s_head = SnakeHead()
 convert_error = True
 packet_number = 0
 tm_winner = ''
+heads_group = pygame.sprite.Group()
 
 while game:
     camera = Camera(0, 0)
@@ -338,6 +370,8 @@ while game:
                     print('Error of send:', err)
                 try:
                     buff += s.recv(DATA_WIND)
+                    # buff += s.recv(DATA_WIND)
+                    # buff += s.recv(DATA_WIND)
                     # print(buff)
                 except Exception as err:
                     print('Error of receive:', err)
@@ -362,7 +396,6 @@ while game:
                         print('==> ', err)
                         convert_error = False
                         continue
-
                 try:
                     my_pos = data['players'][my_addr][0][0]
                     old_data = data
@@ -408,6 +441,7 @@ while game:
                         rect = pygame.Rect(l_pos[0] - eat[1], l_pos[1] - eat[1],
                                            eat[1] * 2, eat[1] * 2)
                         pygame.draw.rect(screen, eat[2], rect)
+                    heads_group.empty()
                     for addr, player in data.get('players', dict()).items():
                         # body, radius, color, life, breake, sound, real_len
                         body, radius, color, hero_life, breake, sound, len_body = player
@@ -461,6 +495,8 @@ while game:
                         contour = 0
                         img, rect, *shift = s_head.get_head(body,
                                                             camera.shift(body[0]), radius, addr)
+                        if img:
+                            Head(img, rect, heads_group)
                         pre_pos = (0, 0)
                         for i, pos in enumerate(body):
                             pos = camera.shift(pos)
@@ -494,8 +530,9 @@ while game:
                                                        pos, _radius, contour)
                                     pre_pos = pos
                             if img:
-                                screen.blit(img, rect)
+                                # screen.blit(img, rect)
                                 screen.blit(surf_0, (rect[0] + shift[0], rect[1] + shift[1]))
+                    heads_group.draw(screen)
                 else:
                     screen.fill(background)
                 if gud_packets:

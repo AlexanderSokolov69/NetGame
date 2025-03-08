@@ -108,20 +108,25 @@ def random_coord():
 class MySprite(pygame.sprite.Sprite):
     def __init__(self, pos=(0, 0), radius=10, color='white', *args):
         super().__init__(*args)
-        self._radius = radius
-        self.image, self.rect = self.new_radius(radius, color)
+        self.image = pygame.Surface([2, 2])
+        self.rect = self.image.get_rect()
+        self._radius = 1
+        self.image, self.rect, self._radius = self.new_radius(radius)
         self.move_point(pos)
 
     def move_point(self, pos):
-        self.rect.x = pos[0] - self._radius
-        self.rect.y = pos[1] - self._radius
+        if self.rect:
+            self.rect.x = pos[0] - self._radius
+            self.rect.y = pos[1] - self._radius
 
-    def new_radius(self, radius, color):
-        a = radius * 2
-        image = pygame.Surface((a, a))
-        pygame.draw.circle(image, color, (radius, radius), radius)
-        self._radius = radius
-        return image, image.get_rect()
+    def new_radius(self, radius, color='white'):
+        if abs(self._radius - radius) > 1:
+            a = radius * 2
+            image = pygame.Surface((a, a))
+            pygame.draw.circle(image, color, (radius, radius), radius)
+            return image, image.get_rect(), radius
+        else:
+            return self.image, self.rect, self._radius
 
     def get_radius(self):
         return self._radius
@@ -204,8 +209,10 @@ class Player(MySprite):
         return self._pos
 
     def update(self):
-        self._step = max(5, STEP - self.get_length() // 30)
-        if self._break <= 0:
+        self._step = max(4, STEP - self.get_length() // 30)
+        if self.is_break():
+            self._break -= 1
+        else:
             self._pos[0] = 0 if self._pos[0] == 0 else math.copysign(self._step, self._pos[0])
             self._pos[1] = 0 if self._pos[1] == 0 else math.copysign(self._step, self._pos[1])
             cmd = self._data.get('key', "")
@@ -233,8 +240,10 @@ class Player(MySprite):
                 elif 'stop' in cmd and self.super_speed == 1:
                     if self._pos[0] == 0:
                         self._pos[1] = math.copysign(STEP, self._pos[1]) * 2
+                        # self._pos[1] *= 2
                     else:
                         self._pos[0] = math.copysign(STEP, self._pos[0]) * 2
+                        # self._pos[0] *= 2
                     self.super_speed = 0
                     self.breake()
                 elif 'freeze' in cmd:
@@ -254,8 +263,6 @@ class Player(MySprite):
                     self.add_segment()
                 if not self.is_head_to_head(sprites):
                     self.is_body_atak(sprites)
-        else:
-            self._break -= 1
         self._data['key'] = None
         self.move()
 
@@ -268,7 +275,7 @@ class Player(MySprite):
         for i in range(start_segment, self.get_length(), step):
             self.segment.move_point(self._body[i])
             player = pygame.sprite.spritecollideany(self.segment, sprites)
-            if player:
+            if player and not player.is_break():
                 coll = i
                 break
             if i >= MIN_SAFE_LENGTH:
@@ -315,11 +322,13 @@ class Player(MySprite):
                 radius = self.get_radius()
                 player.move_head([math.copysign(1, self._pos[1]) * radius * 1.5,
                                   math.copysign(1, self._pos[0]) * radius * 1.5])
+                player.set_data({'key': rnd[random.randint(0, 4)]})
             else:
                 radius = player.get_radius()
                 pos = player.get_pos()
                 self.move_head([math.copysign(1, pos[1]) * radius * 1.5,
                                 math.copysign(1, pos[0]) * radius * 1.5])
+                self.set_data({'key': rnd[random.randint(0, 4)]})
             if self.get_life() == 0 and self.get_length() > 10:
                 self.del_segment(5)
             if player.get_life() == 0 and player.get_length() > 10:
@@ -349,18 +358,16 @@ class Player(MySprite):
         segment = self._body[-1]
         for _ in range(count):
             self._body.append(segment)
-        self.image, self.rect = self.new_radius(self.calc_radius(),
-                                                self._color)
+        self.image, self.rect, self._radius = self.new_radius(self.calc_radius())
         self.move_point(self._body[0])
 
     def calc_radius(self):
-        return max(RADIUS, RADIUS + len(self._body) // SIZE_MUL)
+        return min(100, max(RADIUS, RADIUS + self.get_length() // SIZE_MUL))
 
     def del_segment(self, count=1):
         for _ in range(min(count, len(self._body) - 1)):
             self._body.pop()
-        self.image, self.rect = self.new_radius(self.calc_radius(),
-                                                self._color)
+        self.image, self.rect, self._radius = self.new_radius(self.calc_radius())
         if self.get_life() > 0:
             self.set_life(-1)
 
@@ -370,7 +377,11 @@ class Player(MySprite):
 
     def get_data(self):
         # body, radius, color, life, breake, sound, len_body
-        to_send = (self._body[::2], self._radius, self._color,
+        body = [self.get_head()]
+        for chip in self._body[1:]:
+            if not self.rect.collidepoint(*chip):
+                body.append(chip)
+        to_send = (body, self._radius, self._color,
                    self._life, self._break, self._sound, self.get_length())
         self._sound = ''
         return to_send
@@ -399,14 +410,14 @@ class Player(MySprite):
         return self._life
 
     def is_in_head(self, pos):
-        if self._break:
+        if self.is_break():
             return False
         px, py = self._body[0]
         return self.rect.collidepoint(pos)
         # return abs(pos[0] - px) < self._radius and abs(pos[1] - py) < self._radius
 
     def eat_in_head(self):
-        if self._break:
+        if self.is_break():
             return False
         ret = pygame.sprite.spritecollide(self, eat_sprites, True)
         if ret:
@@ -415,15 +426,15 @@ class Player(MySprite):
 
     def reverse(self):
         if self.is_break():
-            return
+            return False
         self._pos = [self._pos[0] * -1, self._pos[1] * -1]
         self.breake()
 
     def breake(self):
-        if self.is_break():
-            return
-        self._break = max(RADIUS, self.get_length() // 2)
-        self.set_sound('break')
+        if not self.is_break():
+            self._break = max(RADIUS, self.get_length() // 3)
+            self.set_sound('break')
+        return True
 
     def add_data(self, rec: dict):
         for key, val in rec.items():
