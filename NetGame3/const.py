@@ -3,7 +3,7 @@ from random import randint
 
 
 class Const:
-    VERSION = 'v2.4.3'
+    VERSION = 'v2.5'
     restart = 1
     WIDTH = 3000  # Кратно STEP
     HEIGHT = 3000  # Кратно STEP
