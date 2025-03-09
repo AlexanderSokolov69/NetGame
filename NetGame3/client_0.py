@@ -204,8 +204,8 @@ class ScrSprite(pygame.sprite.Sprite):
         self.rect = rect.move(*pos)
 
 
-color = choice(['white', 'red', 'blue', 'green', 'yellow', 'black'])
-rnd = ['left', 'right', 'up', 'down']
+# color = choice(['white', 'red', 'blue', 'green', 'yellow', 'black'])
+# rnd = ['left', 'right', 'up', 'down']
 buff = b''
 my_addr = '-.-.-.-'
 sound_brake = pygame.mixer.Sound('data/break1.ogg')
@@ -330,6 +330,18 @@ tm_winner = ''
 scr_grp = pygame.sprite.Group()
 heads_group = pygame.sprite.Group()
 main_head_grp = pygame.sprite.Group()
+
+surf_radar = pygame.Surface((800, 800), pygame.SRCALPHA)
+pygame.draw.circle(surf_radar, time_color, (400, 400), 400, 1)
+pygame.draw.circle(surf_radar, time_color, (400, 400), 350, 1)
+pygame.draw.circle(surf_radar, time_color, (400, 400), 300, 1)
+pygame.draw.circle(surf_radar, time_color, (400, 400), 250, 1)
+for i in range(2):
+    pygame.draw.line(surf_radar, time_color, (100, 100 + i * 600), (700, 700 - i * 600), 1)
+    pygame.draw.line(surf_radar, time_color, (i * 400, 400 - i * 400), (800 - i * 400, 400 + i * 400), 1)
+    # pygame.draw.line(surf, background, (i * 4, 0), (i * 4, 800), 1)
+pygame.draw.circle(surf_radar, background, (400, 400), 220)
+
 while game:
     camera = Camera(0, 0)
     my_pos = [0, 0]
@@ -384,7 +396,7 @@ while game:
                         flag = False
                 # st = json.dumps(cmd)
                 try:
-                    s.sendall(zlib.compress(msgpack.packb(cmd)) + b'0%%0%0%%0')
+                    s.send(zlib.compress(msgpack.packb(cmd)) + b'0%%0%0%%0')
                 except Exception as err:
                     print('Error of send:', err)
                 try:
@@ -393,35 +405,30 @@ while game:
                     # buff += s.recv(DATA_WIND)
                     # print(buff)
                 except Exception as err:
-                    print('Error of receive:', err)
+                    print('Error of receive:', err, 'BUF:', len(buff))
                 data = dict()
                 while (pos := buff.find(b'0%%0%0%%0')) >= 0:
                     i_data = buff[:pos]
                     buff = buff[pos + 9:]
                     try:
                         data: dict[tuple[list, int, int, int, int]] = msgpack.unpackb(zlib.decompress(i_data))
-                        # n = data['NUMBER']
-                        # if packet_number < n or n == 0:
                         convert_error = True
-                        # packet_number = n
-                        # else:
-                        #     convert_error = False
                         Const.WIDTH, Const.HEIGHT = data.get('AREA_SIZE', [Const.WIDTH, Const.HEIGHT])
                     except json.JSONDecodeError:
                         print('JSON convert error.', data)
                         convert_error = False
-                        continue
+                        # continue
                     except Exception as err:
-                        print('==> ', err)
+                        print('UNPACK Error ==> ', err)
                         convert_error = False
-                        continue
+                        # continue
                 try:
                     my_pos = data['players'][my_addr][0][0]
                     old_data = data
                     gud_packets = True
                 except Exception as e:
                     gud_packets = False
-                    # print('GET POS ==>', e)
+                    print('MY POS ==>', e)
                     if old_data.get('players', None):
                         data = old_data
                         my_pos = data['players'][my_addr][0][0]
@@ -441,12 +448,7 @@ while game:
                     else:
                         end_clr = [250, 255, 250]
                         screen.fill(background)
-                    surf = pygame.Surface((800, 800), pygame.SRCALPHA)
-                    pygame.draw.circle(surf, time_color, (400, 400), 400, 1)
-                    pygame.draw.circle(surf, time_color, (400, 400), 350, 1)
-                    pygame.draw.circle(surf, time_color, (400, 400), 300, 1)
-                    pygame.draw.circle(surf, time_color, (400, 400), 250, 1)
-                    ScrSprite(surf, (scr_dx - 400, scr_dy - 400), scr_grp)
+                    ScrSprite(surf_radar, (scr_dx - 400, scr_dy - 400), scr_grp)
 
                     surf = font_time.render(f"ТАЙМЕР: {tm}", False, time_color)
                     ScrSprite(surf, (60, 20), scr_grp)
@@ -461,11 +463,7 @@ while game:
                         l_pos = camera.shift(eat[0][0])
                         surf = pygame.Surface((eat[1] * 2, eat[1] * 2))
                         surf.fill(eat[2])
-                        # rect = pygame.Rect(l_pos[0] - eat[1], l_pos[1] - eat[1],
-                        #                    eat[1] * 2, eat[1] * 2)
-                        # pygame.draw.rect(surf, eat[2], (0, 0))
                         ScrSprite(surf, (l_pos[0] - eat[1], l_pos[1] - eat[1]), scr_grp)
-
                     for addr, player in data.get('players', dict()).items():
                         # body, radius, color, life, breake, sound, real_len
                         body, radius, color, hero_life, breake, sound, len_body = player
@@ -508,9 +506,9 @@ while game:
                                     _y = scr_dy + (dy * koef)
                                     dist = font.render(str(len_body), False, time_color)
                                     ScrSprite(dist, (_x, _y), scr_grp)
-                                    c_color = color if gamers['me'][1] > 100 else time_color
+                                    # c_color = color if gamers['me'][1] > 100 else time_color
                                     rds = min(100, len_body // 2)
-                                    circle_to_head(rds, c_color, (_x - rds, _y - rds),
+                                    circle_to_head(rds, time_color, (_x - rds, _y - rds),
                                                    grp=scr_grp, contour=max(1, len_body // 50))
                             color_r, color_g, color_b = color
                         dr_color = (255 - color_r) // len_body
@@ -549,7 +547,7 @@ while game:
                                          color_g + dg_color * i,
                                          color_b + db_color * i)
 #                                if delta_pos(pre_pos, c_pos) <= 20:
-                                radius = max(5, radius / 1.1)
+                                radius = max(5, radius / 1.2)
                                 circle_to_head(_radius, color, r_pos,
                                                grp=heads_group, contour=max(3, len_body // 60))
                             pre_pos = c_pos
@@ -559,14 +557,15 @@ while game:
                     color = 'green'
                 else:
                     color = 'red'
-                circle_to_head(10, color, (10, 10), grp=scr_grp, contour=0)
+                circle_to_head(10, color, (10, 10), grp=scr_grp, contour=3)
                 scr_grp.draw(screen)
                 heads_group.draw(screen)
                 main_head_grp.draw(screen)
                 pygame.display.update()
+                clock.tick(60)
     except ConnectionResetError:
         print('Try reconnect')
-        continue
+        # continue
     # except Exception as err:
     #     print('All errors: ', err)
 pygame.quit()
