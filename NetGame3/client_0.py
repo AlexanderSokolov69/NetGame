@@ -196,7 +196,15 @@ class Camera:
         return x, y
 
 
-color = choice(['white', 'red', 'blue', 'green', 'yellow'])
+class ScrSprite(pygame.sprite.Sprite):
+    def __init__(self, surf: pygame.Surface, pos: tuple[int, int], *args):
+        super().__init__(*args)
+        self.image = surf
+        rect = self.image.get_rect()
+        self.rect = rect.move(*pos)
+
+
+color = choice(['white', 'red', 'blue', 'green', 'yellow', 'black'])
 rnd = ['left', 'right', 'up', 'down']
 buff = b''
 my_addr = '-.-.-.-'
@@ -305,6 +313,13 @@ def delta_pos(pos0: list[int, int], pos1: list[int, int]):
     return max(abs(pos0[0] - pos1[0]), abs(pos0[1] - pos1[1]))
 
 
+def circle_to_head(radius, color, pos, grp=None, contour=3):
+    surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+    pygame.draw.circle(surf, color,
+                       (radius, radius), radius, contour)
+    Head(surf, pos, grp)
+
+
 play_sound('eat')
 game = True
 menu = MainMenu()
@@ -312,8 +327,9 @@ s_head = SnakeHead()
 convert_error = True
 packet_number = 0
 tm_winner = ''
+scr_grp = pygame.sprite.Group()
 heads_group = pygame.sprite.Group()
-
+main_head_grp = pygame.sprite.Group()
 while game:
     camera = Camera(0, 0)
     my_pos = [0, 0]
@@ -335,6 +351,9 @@ while game:
             old_data = dict()
             gamers.clear()
             while flag:
+                scr_grp.empty()
+                heads_group.empty()
+                main_head_grp.empty()
                 cmd = {'key': [], 'name': menu.user_name}
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
@@ -422,26 +441,31 @@ while game:
                     else:
                         end_clr = [250, 255, 250]
                         screen.fill(background)
-                    pygame.draw.circle(screen, time_color, (scr_dx, scr_dy), 400, 1)
-                    pygame.draw.circle(screen, time_color, (scr_dx, scr_dy), 350, 1)
-                    pygame.draw.circle(screen, time_color, (scr_dx, scr_dy), 300, 1)
-                    pygame.draw.circle(screen, time_color, (scr_dx, scr_dy), 250, 1)
+                    surf = pygame.Surface((800, 800), pygame.SRCALPHA)
+                    pygame.draw.circle(surf, time_color, (400, 400), 400, 1)
+                    pygame.draw.circle(surf, time_color, (400, 400), 350, 1)
+                    pygame.draw.circle(surf, time_color, (400, 400), 300, 1)
+                    pygame.draw.circle(surf, time_color, (400, 400), 250, 1)
+                    ScrSprite(surf, (scr_dx - 400, scr_dy - 400), scr_grp)
 
                     surf = font_time.render(f"ТАЙМЕР: {tm}", False, time_color)
-                    screen.blit(surf, (60, 20))
+                    ScrSprite(surf, (60, 20), scr_grp)
                     if tm_winner:
                         surf = font_time.render(tm_winner, False, time_color)
-                        screen.blit(surf, (width // 2 - surf.get_rect().width // 2, height - 100))
+                        ScrSprite(surf, (width // 2 - surf.get_rect().width // 2, height - 100), scr_grp)
                     surf = font_time.render(menu.user_name, False, time_color)
-                    screen.blit(surf, (width - surf.get_rect().width - 50, 20))
+                    ScrSprite(surf, (width - surf.get_rect().width - 50, 20), scr_grp)
                     camera.move(*my_pos)
                     for eat in data.get('eats', []):
                         # pos, radius, color
                         l_pos = camera.shift(eat[0][0])
-                        rect = pygame.Rect(l_pos[0] - eat[1], l_pos[1] - eat[1],
-                                           eat[1] * 2, eat[1] * 2)
-                        pygame.draw.rect(screen, eat[2], rect)
-                    heads_group.empty()
+                        surf = pygame.Surface((eat[1] * 2, eat[1] * 2))
+                        surf.fill(eat[2])
+                        # rect = pygame.Rect(l_pos[0] - eat[1], l_pos[1] - eat[1],
+                        #                    eat[1] * 2, eat[1] * 2)
+                        # pygame.draw.rect(surf, eat[2], (0, 0))
+                        ScrSprite(surf, (l_pos[0] - eat[1], l_pos[1] - eat[1]), scr_grp)
+
                     for addr, player in data.get('players', dict()).items():
                         # body, radius, color, life, breake, sound, real_len
                         body, radius, color, hero_life, breake, sound, len_body = player
@@ -452,7 +476,7 @@ while game:
                         if my_head:
                             gamers['me'] = body[0], len_body
                             surf = font_time.render(f"ДЛИНА: {len_body}", False, time_color)
-                            screen.blit(surf, (width - surf.get_rect().width - 50, 120))
+                            ScrSprite(surf, (width - surf.get_rect().width - 50, 120), scr_grp)
                             color_r, color_g, color_b = menu.color
                         else:
                             if gamers.get('me'):
@@ -483,10 +507,11 @@ while game:
                                     _x = scr_dx + (dx * koef)
                                     _y = scr_dy + (dy * koef)
                                     dist = font.render(str(len_body), False, time_color)
-                                    screen.blit(dist, (_x, _y))
+                                    ScrSprite(dist, (_x, _y), scr_grp)
                                     c_color = color if gamers['me'][1] > 100 else time_color
-                                    pygame.draw.circle(screen, c_color, (_x, _y),
-                                                        min(100, len_body // 2), max(1, len_body // 50))
+                                    rds = min(100, len_body // 2)
+                                    circle_to_head(rds, c_color, (_x - rds, _y - rds),
+                                                   grp=scr_grp, contour=max(1, len_body // 50))
                             color_r, color_g, color_b = color
                         dr_color = (255 - color_r) // len_body
                         dg_color = (255 - color_g) // len_body
@@ -496,49 +521,48 @@ while game:
                         img, rect, *shift = s_head.get_head(body,
                                                             camera.shift(body[0]), radius, addr)
                         if img:
-                            Head(img, rect, heads_group)
-                        pre_pos = (0, 0)
-                        for i, pos in enumerate(body):
-                            pos = camera.shift(pos)
+                            Head(img, rect, main_head_grp)
                             surf_0 = font.render(f"{hero_life}", False,
                                                  'pink', background)
+                            Head(surf_0, (rect[0] + shift[0], rect[1] + shift[1]), main_head_grp)
+
+                        pre_pos = camera.shift(body[0])
+                        if breake > 0:
+                            c_pos = camera.shift(body[0])
+                            r_pos = c_pos[0] - radius, c_pos[1] - radius
+                            b_color = (min(255, breake * 20), min(255, breake * 4), min(255, breake * 4))
+                            circle_to_head(radius + 4, b_color, (r_pos[0] - 4, r_pos[1] - 4),
+                                           grp=heads_group, contour=4)
+                        for i, pos in enumerate(body[len_body // 300:]):
+                            c_pos = camera.shift(pos)
                             _radius = radius
+                            r_pos = c_pos[0] - _radius, c_pos[1] - _radius
                             if i == 0:
-                                txt_pos = pos
+                                txt_pos = r_pos
                                 div = min(2, len(body))
                                 color = (color_r // div, color_g // div, color_b // div)
                                 radius -= 4
-                                if breake > 0:
-                                    b_color = (min(255, breake * 20), min(255, breake * 4), min(255, breake * 4))
-                                    pygame.draw.circle(screen, b_color,
-                                                       pos, _radius + 4, 8)
-                                if len(body) == 1:
-                                    pygame.draw.circle(screen, color,
-                                                       pos, _radius, contour)
-                                if not img:
-                                    pygame.draw.circle(screen, color,
-                                                       pos, _radius, contour)
-                                pre_pos = pos
-                                contour = 3
+                                if len(body) == 1 or not img:
+                                    circle_to_head(_radius, color, r_pos, grp=heads_group)
                             else:
                                 color = (color_r + dr_color * i,
                                          color_g + dg_color * i,
                                          color_b + db_color * i)
+#                                if delta_pos(pre_pos, c_pos) <= 20:
                                 radius = max(5, radius / 1.1)
-                                if delta_pos(pre_pos, pos) >= radius // 2:
-                                    pygame.draw.circle(screen, color,
-                                                       pos, _radius, contour)
-                                    pre_pos = pos
-                            if img:
-                                # screen.blit(img, rect)
-                                screen.blit(surf_0, (rect[0] + shift[0], rect[1] + shift[1]))
-                    heads_group.draw(screen)
+                                circle_to_head(_radius, color, r_pos,
+                                               grp=heads_group, contour=max(3, len_body // 60))
+                            pre_pos = c_pos
                 else:
                     screen.fill(background)
                 if gud_packets:
-                    pygame.draw.circle(screen, 'green', (20, 20), 8, 4)
+                    color = 'green'
                 else:
-                    pygame.draw.circle(screen, 'red', (20, 20), 10, 6)
+                    color = 'red'
+                circle_to_head(10, color, (10, 10), grp=scr_grp, contour=0)
+                scr_grp.draw(screen)
+                heads_group.draw(screen)
+                main_head_grp.draw(screen)
                 pygame.display.update()
     except ConnectionResetError:
         print('Try reconnect')
