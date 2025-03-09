@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding:utf-8
+import gc
 import math
 import os
 # import random
@@ -561,8 +562,10 @@ while game:
                 scr_grp.draw(screen)
                 heads_group.draw(screen)
                 main_head_grp.draw(screen)
+                if gc.isenabled():
+                    gc.collect()
                 pygame.display.update()
-                clock.tick(60)
+                # clock.tick(60)
     except ConnectionResetError:
         print('Try reconnect')
         # continue

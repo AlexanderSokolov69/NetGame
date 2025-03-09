@@ -130,7 +130,7 @@ class Player(MySprite):
         return self._pos
 
     def update(self):
-        self._step = max(4, Const.STEP - self.get_length() // 30)
+        self._step = max(4, Const.STEP - self.get_length() // 100)
         if self.is_break():
             self._break -= 1
         else:
@@ -193,6 +193,7 @@ class Player(MySprite):
 
     def to_del_segment(self, cnt):
         self._to_del = cnt
+
     def is_body_atak(self, sprites):
         if self.is_break():
             return False
@@ -311,7 +312,7 @@ class Player(MySprite):
     def get_data(self):
         # body, radius, color, life, breake, sound, len_body
         body = [self.get_head()]
-        for chip in self._body[1::min(10, max(2, self.get_length() // 10))]:
+        for chip in self._body[1::min(10, max(2, self.get_length() // 100))]:
             # if not self.rect.collidepoint(*chip):
             body.append(chip)
         to_send = (body, self._radius, self._color,

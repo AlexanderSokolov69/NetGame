@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding:utf-8
+import gc
 import socket
 import sys
 import zlib
@@ -150,6 +151,8 @@ if __name__ == "__main__":
         ScrSprite(text, (500, S_HEIGHT - 50), scr_sprites)
 
         scr_sprites.draw(screen)
+        # if gc.isenabled():
+        #     gc.collect()
         pygame.display.flip()
 
         # Получаем данные от игроков
