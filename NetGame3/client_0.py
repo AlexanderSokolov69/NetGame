@@ -453,6 +453,8 @@ while game:
 
                     surf = font_time.render(f"ТАЙМЕР: {tm}", False, time_color)
                     ScrSprite(surf, (60, 20), scr_grp)
+                    surf = font_time.render(f"{int(clock.get_fps())}FPS", False, time_color)
+                    ScrSprite(surf, (10, height - 70), scr_grp)
                     if tm_winner:
                         surf = font_time.render(tm_winner, False, time_color)
                         ScrSprite(surf, (width // 2 - surf.get_rect().width // 2, height - 100), scr_grp)
@@ -565,7 +567,7 @@ while game:
                 if gc.isenabled():
                     gc.collect()
                 pygame.display.update()
-                # clock.tick(60)
+                clock.tick(80)
     except ConnectionResetError:
         print('Try reconnect')
         # continue
