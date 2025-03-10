@@ -684,6 +684,12 @@ if __name__ == "__main__":
         screen.blit(text, (45, 50))
         i = 0
         for (addr, player) in srv_host.player_data.items():
+            if player.get_length() < 6 and 'bot' in addr:
+                player = Player()
+                player.add_segment(12)
+                player.set_sound('a-a-a')
+                srv_host.player_data[addr] = player
+                continue
             if srv_host.super_speed == 1:
                 player.super_speed = 1
             if addr[:3] != 'bot':

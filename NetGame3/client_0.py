@@ -203,6 +203,8 @@ my_addr = '-.-.-.-'
 sound_brake = pygame.mixer.Sound('data/break1.ogg')
 sound_eat = pygame.mixer.Sound('data/eat.ogg')
 sound_ataka = pygame.mixer.Sound('data/brake.ogg')
+sound_chav = pygame.mixer.Sound('data/chav-chav.ogg')
+sound_aaa = pygame.mixer.Sound('data/vopel.ogg')
 
 font_win = pygame.font.Font('data/Capsmall.ttf', 50)
 font_time = pygame.font.Font('data/Capsmall.ttf', 80)
@@ -265,7 +267,12 @@ def play_sound(sound: str, addr=''):
         elif 'eat' in sound:
             sound_eat.play()
         elif 'ataka' in sound:
-            sound_ataka.play()
+            sound_chav.stop()
+            sound_chav.play()
+        elif 'chav-chav':
+            sound_chav.play()
+        elif 'a-a-a':
+            sound_aaa.play()
     except:
         pass
 
