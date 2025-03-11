@@ -565,8 +565,8 @@ while game:
                 scr_grp.draw(screen)
                 heads_group.draw(screen)
                 main_head_grp.draw(screen)
-                # if gc.isenabled():
-                #     gc.collect()
+                if gc.isenabled():
+                    gc.collect()
                 pygame.display.update()
                 clock.tick(100)
     except ConnectionResetError:
