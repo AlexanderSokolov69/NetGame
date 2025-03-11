@@ -34,8 +34,8 @@ with open('config.json') as f:
 DATA_WIND = Const.data['DATA_WIND']
 SIZE_MUL = 2
 l_text, h_text, step_text = 200, 200, 70
-background = pygame.Color((0, 50, 0))
-time_color = pygame.Color((10, 80, 10))
+background = (0, 50, 0)
+time_color = (10, 80, 10)
 pygame.init()
 size = width, height
 
@@ -314,17 +314,32 @@ def delta_pos(pos0: list[int, int], pos1: list[int, int]):
     return max(abs(pos0[0] - pos1[0]), abs(pos0[1] - pos1[1]))
 
 
-def circle_to_head(radius, color, pos, grp=None, contour=3):
-    surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-    pygame.draw.circle(surf, color,
-                       (radius, radius), radius, contour)
-    Head(surf, pos, grp)
+class Circle:
+    def __init__(self):
+        pass
+        # self.data = dict()
+
+    def get(self, radius, color, contour):
+        # img = self.data.get((radius, color, contour))
+        # if img:
+        #     return img
+        surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(surf, color,
+                           (radius, radius), radius, contour)
+        # self.data[(radius, color, contour)] = surf
+        # print(len(self.data))
+        return surf
+
+    def circle_to_head(self, radius, color, pos, grp=None, contour=3):
+        surf = self.get(radius, color, contour)
+        Head(surf, pos, grp)
 
 
 play_sound('eat')
 game = True
 menu = MainMenu()
 s_head = SnakeHead()
+circle = Circle()
 convert_error = True
 packet_number = 0
 tm_winner = ''
@@ -444,7 +459,7 @@ while game:
                             tm_winner = f"Победитель: {winner}"
                     tm = data.get('TIMER', 999)
                     if tm < 2:
-                        screen.fill(pygame.Color(end_clr))
+                        screen.fill(end_clr)
                         end_clr = max(0, end_clr[0] - 6), max(0, end_clr[1] - 4), max(0, end_clr[2] - 6)
                     else:
                         end_clr = [250, 255, 250]
@@ -509,7 +524,7 @@ while game:
                                     ScrSprite(dist, (_x, _y), scr_grp)
                                     # c_color = color if gamers['me'][1] > 100 else time_color
                                     rds = min(100, len_body // 2)
-                                    circle_to_head(rds, time_color, (_x - rds, _y - rds),
+                                    circle.circle_to_head(rds, time_color, (_x - rds, _y - rds),
                                                    grp=scr_grp, contour=max(1, len_body // 50))
                             color_r, color_g, color_b = color
                         dr_color = (255 - color_r) // len_body
@@ -530,7 +545,7 @@ while game:
                             c_pos = camera.shift(body[0])
                             r_pos = c_pos[0] - radius, c_pos[1] - radius
                             b_color = (min(255, breake * 20), min(255, breake * 4), min(255, breake * 4))
-                            circle_to_head(radius + 4, b_color, (r_pos[0] - 4, r_pos[1] - 4),
+                            circle.circle_to_head(radius + 4, b_color, (r_pos[0] - 4, r_pos[1] - 4),
                                            grp=heads_group, contour=4)
                         for i, pos in enumerate(body[len_body // 300:]):
                             c_pos = camera.shift(pos)
@@ -542,14 +557,14 @@ while game:
                                 color = (color_r // div, color_g // div, color_b // div)
                                 radius -= 4
                                 if len(body) == 1 or not img:
-                                    circle_to_head(_radius, color, r_pos, grp=heads_group)
+                                    circle.circle_to_head(_radius, color, r_pos, grp=heads_group)
                             else:
                                 color = (color_r + dr_color * i,
                                          color_g + dg_color * i,
                                          color_b + db_color * i)
 #                                if delta_pos(pre_pos, c_pos) <= 20:
                                 radius = max(5, radius / 1.2)
-                                circle_to_head(_radius, color, r_pos,
+                                circle.circle_to_head(_radius, color, r_pos,
                                                grp=heads_group, contour=max(3, len_body // 60))
                             pre_pos = c_pos
                 else:
@@ -558,7 +573,7 @@ while game:
                     color = 'green'
                 else:
                     color = 'red'
-                circle_to_head(10, color, (10, 10), grp=scr_grp, contour=3)
+                circle.circle_to_head(10, color, (10, 10), grp=scr_grp, contour=3)
                 surf = font.render(f"{int(clock.get_fps())}FPS", False, color)
                 ScrSprite(surf, (40, 8), scr_grp)
 
