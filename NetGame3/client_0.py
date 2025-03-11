@@ -324,15 +324,17 @@ class Circle:
         # if img:
         #     return img
         surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-        pygame.draw.circle(surf, color,
-                           (radius, radius), radius, contour)
+        # pygame.draw.circle(surf, color,
+        #                    (radius, radius), radius, contour)
+        pygame.draw.rect(surf, color,
+                           (0, 0, radius, radius), contour)
         # self.data[(radius, color, contour)] = surf
         # print(len(self.data))
         return surf
 
     def circle_to_head(self, radius, color, pos, grp=None, contour=3):
         surf = self.get(radius, color, contour)
-        Head(surf, pos, grp)
+        Head(surf, (pos[0] + radius // 2, pos[1] + radius // 2), grp)
 
 
 play_sound('eat')
@@ -580,8 +582,8 @@ while game:
                 scr_grp.draw(screen)
                 heads_group.draw(screen)
                 main_head_grp.draw(screen)
-                if gc.isenabled():
-                    gc.collect()
+                # if gc.isenabled():
+                #     gc.collect()
                 pygame.display.update()
                 clock.tick(100)
     except ConnectionResetError:
